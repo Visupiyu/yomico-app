@@ -9,13 +9,14 @@ import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import HomeScreen from "../screens/HomeScreen";
 import ProductDetailsScreen from "../screens/ProductDetailsScreen";
-
+import CartScreen from "../screens/CartScreen";
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
   Register: undefined;
   Home: undefined;
   ProductDetails: { product: any };
+  Cart: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -55,7 +56,11 @@ export default function AppNavigator() {
  <Stack.Screen
   name="ProductDetails"
   component={ProductDetailsScreen}
-/>      
+/>    
+<Stack.Screen
+  name="Cart"
+  component={CartScreen}
+/>  
 
       </Stack.Navigator>
 

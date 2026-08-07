@@ -18,7 +18,16 @@ import {
 
 import { getProducts } from "../services/productService";
 import ProductCard from "../components/ProductCard";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../navigation/AppNavigator";
+
+type NavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "Home"
+>;
 export default function HomeScreen() {
+  const navigation = useNavigation<NavigationProp>();
 const [products, setProducts] = useState<any[]>([]);
 const [loading, setLoading] = useState(true);
 
@@ -56,11 +65,17 @@ async function loadProducts() {
             YOMICO
           </Text>
 
-          <MaterialIcons
-            name="notifications-none"
-            size={30}
-            color="#16A34A"
-          />
+          <TouchableOpacity
+  onPress={() =>
+    navigation.navigate("Cart")
+  }
+>
+  <MaterialIcons
+    name="shopping-cart"
+    size={30}
+    color="#16A34A"
+  />
+</TouchableOpacity>
 
         </View>
 
