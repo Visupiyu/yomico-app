@@ -21,6 +21,13 @@ import ProfileScreen from "../screens/ProfileScreen";
 import WishlistScreen from "../screens/WishlistScreen";
 import AddressScreen from "../screens/AddressScreen";
 import SearchScreen from "../screens/SearchScreen";
+import ProductQuestionsScreen from "../screens/ProductQuestionsScreen";
+import ChatScreen from "../screens/ChatScreen";
+import NotificationsScreen from "../screens/NotificationsScreen";
+import RecentlyViewedScreen from "../screens/RecentlyViewedScreen";
+import EditProfileScreen from "../screens/EditProfileScreen";
+import EditAddressScreen from "../screens/EditAddressScreen";
+import SupportScreen from "../screens/SupportScreen";
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -33,10 +40,16 @@ export type RootStackParamList = {
   Orders: undefined;
 OrderDetails: {order: any;};
 Profile: undefined;
+EditProfile: undefined;
 Wishlist: undefined;
 Address: undefined;
+EditAddress: { addressId: string;};
 Search:| {category?: string; } | undefined;
-};
+ProductQuestions: {productId: string;productName: string; vendorId: string; vendorName: string;};
+Chat: {productId: string; productName: string; vendorId: string; vendorName: string;};
+Notifications: undefined;
+RecentlyViewed: undefined;
+Support: | { orderId?: string; } | undefined;};
 
 
 const Stack =
@@ -89,7 +102,10 @@ export default function AppNavigator() {
           name="ProductDetails"
           component={ProductDetailsScreen}
         />
-
+<Stack.Screen
+  name="ProductQuestions"
+  component={ProductQuestionsScreen}
+/>
 
         <Stack.Screen
           name="Cart"
@@ -114,12 +130,36 @@ export default function AppNavigator() {
   component={ProfileScreen}
 />
 <Stack.Screen
+  name="EditProfile"
+  component={EditProfileScreen}
+/>
+<Stack.Screen
   name="Wishlist"
   component={WishlistScreen}
 />
 <Stack.Screen
   name="Address"
   component={AddressScreen}
+/>
+<Stack.Screen
+  name="EditAddress"
+  component={EditAddressScreen}
+/>
+<Stack.Screen
+  name="Chat"
+  component={ChatScreen}
+/>
+<Stack.Screen
+  name="Notifications"
+  component={NotificationsScreen}
+/>
+<Stack.Screen
+  name="RecentlyViewed"
+  component={RecentlyViewedScreen}
+/>
+<Stack.Screen
+  name="Support"
+  component={SupportScreen}
 />
       </Stack.Navigator>
 

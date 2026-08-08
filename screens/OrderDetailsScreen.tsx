@@ -14,8 +14,10 @@ import {
   TextInput,
 } from "react-native";
 
-import { RouteProp, useRoute } from "@react-navigation/native";
-
+import { RouteProp, useRoute, useNavigation, } from "@react-navigation/native";
+import type {
+  NativeStackNavigationProp,
+} from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import {
   doc,
@@ -41,6 +43,13 @@ type OrderDetailsRouteProp =
 
 
 export default function OrderDetailsScreen() {
+    const navigation =
+    useNavigation<
+      NativeStackNavigationProp<
+        RootStackParamList,
+        "OrderDetails"
+      >
+    >();
 async function reorderItems() {
 
   try {
@@ -545,6 +554,27 @@ async function cancelOrder() {
     style={styles.reorderButtonText}
   >
     Buy Again
+  </Text>
+
+</TouchableOpacity>
+<TouchableOpacity
+  style={styles.supportButton}
+  activeOpacity={0.8}
+  onPress={() =>
+    navigation.navigate(
+      "Support",
+      {
+        orderId:
+          order.id,
+      }
+    )
+  }
+>
+
+  <Text
+    style={styles.supportButtonText}
+  >
+    Need Help With This Order?
   </Text>
 
 </TouchableOpacity>
@@ -1324,6 +1354,23 @@ reorderButton: {
 
 reorderButtonText: {
   color: "#FFFFFF",
+  fontSize: 13,
+  fontWeight: "800",
+},
+supportButton: {
+  marginTop: 8,
+  marginHorizontal: 14,
+  height: 44,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "#16A34A",
+  backgroundColor: "#FFFFFF",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+supportButtonText: {
+  color: "#16A34A",
   fontSize: 13,
   fontWeight: "800",
 },

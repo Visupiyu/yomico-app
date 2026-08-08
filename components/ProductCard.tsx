@@ -6,15 +6,37 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 
-import { MaterialIcons } from "@expo/vector-icons";
+import {
+  MaterialIcons,
+} from "@expo/vector-icons";
 
-import { useNavigation } from "@react-navigation/native";
+import {
+  useNavigation,
+} from "@react-navigation/native";
 
 import {
   NativeStackNavigationProp,
 } from "@react-navigation/native-stack";
+
+import {
+  addDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
+
+import {
+  auth,
+  db,
+} from "../firebase/firebase";
+
+import {
+  addToCart,
+} from "../services/cartService";
 
 import {
   RootStackParamList,
@@ -41,10 +63,171 @@ export default function ProductCard({
     useNavigation<NavigationProp>();
 
 
+  async function handleAddToCart() {
+
+    try {
+
+      await addToCart(
+        product
+      );
+
+
+      Alert.alert(
+        "Added to Cart",
+        `${product.name || "Product"} has been added to your cart.`
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Product Card Cart Error:",
+        error
+      );
+
+
+      Alert.alert(
+        "Error",
+        "Unable to add product to cart."
+      );
+
+    }
+
+  }
+
+
+  async function handleAddToWishlist() {
+
+    const user =
+      auth.currentUser;
+
+
+    if (!user) {
+
+      Alert.alert(
+        "Login Required",
+        "Please login to add products to your wishlist."
+      );
+
+      return;
+
+    }
+
+
+    try {
+
+      const wishlistQuery =
+        query(
+          collection(
+            db,
+            "wishlist"
+          ),
+
+          where(
+            "userId",
+            "==",
+            user.uid
+          ),
+
+          where(
+            "productId",
+            "==",
+            product.id
+          )
+        );
+
+
+      const snapshot =
+        await getDocs(
+          wishlistQuery
+        );
+
+
+      if (
+        !snapshot.empty
+      ) {
+
+        Alert.alert(
+          "Already Added",
+          "This product is already in your wishlist."
+        );
+
+        return;
+
+      }
+
+
+      await addDoc(
+        collection(
+          db,
+          "wishlist"
+        ),
+        {
+
+          userId:
+            user.uid,
+
+          productId:
+            product.id,
+
+          name:
+            product.name || "",
+
+          price:
+            product.price || 0,
+
+          mrp:
+            product.mrp || 0,
+
+          image:
+            product.images?.[0] ||
+            product.image ||
+            "",
+
+          vendorId:
+            product.vendorId || "",
+
+          vendorName:
+            product.vendorName || "",
+
+          discountPercent:
+            product.discountPercent || 0,
+
+          createdAt:
+            new Date(),
+
+        }
+      );
+
+
+      Alert.alert(
+        "Added to Wishlist",
+        `${product.name || "Product"} has been added to your wishlist.`
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Product Card Wishlist Error:",
+        error
+      );
+
+
+      Alert.alert(
+        "Error",
+        "Unable to add product to wishlist."
+      );
+
+    }
+
+  }
+
+
   return (
 
     <TouchableOpacity
-      style={styles.card}
+      style={
+        styles.card
+      }
       activeOpacity={0.8}
       onPress={() =>
         navigation.navigate(
@@ -58,15 +241,21 @@ export default function ProductCard({
 
       <Image
         source={{
-          uri: product.image,
+          uri:
+            product.images?.[0] ||
+            product.image,
         }}
-        style={styles.image}
+        style={
+          styles.image
+        }
         resizeMode="cover"
       />
 
 
       <Text
-        style={styles.name}
+        style={
+          styles.name
+        }
         numberOfLines={2}
       >
         {product.name}
@@ -74,11 +263,15 @@ export default function ProductCard({
 
 
       <View
-        style={styles.priceRow}
+        style={
+          styles.priceRow
+        }
       >
 
         <Text
-          style={styles.price}
+          style={
+            styles.price
+          }
         >
           ₹{product.price}
         </Text>
@@ -87,7 +280,9 @@ export default function ProductCard({
         {product.mrp ? (
 
           <Text
-            style={styles.mrp}
+            style={
+              styles.mrp
+            }
           >
             ₹{product.mrp}
           </Text>
@@ -100,20 +295,30 @@ export default function ProductCard({
       {product.discountPercent ? (
 
         <Text
-          style={styles.discount}
+          style={
+            styles.discount
+          }
         >
-          {product.discountPercent}% OFF
+          {product.discountPercent}%
+          {" "}OFF
         </Text>
 
       ) : null}
 
 
       <View
-        style={styles.bottomRow}
+        style={
+          styles.bottomRow
+        }
       >
+
+        {/* WISHLIST */}
 
         <TouchableOpacity
           activeOpacity={0.7}
+          onPress={
+            handleAddToWishlist
+          }
         >
 
           <MaterialIcons
@@ -125,9 +330,16 @@ export default function ProductCard({
         </TouchableOpacity>
 
 
+        {/* CART */}
+
         <TouchableOpacity
-          style={styles.cartButton}
+          style={
+            styles.cartButton
+          }
           activeOpacity={0.7}
+          onPress={
+            handleAddToCart
+          }
         >
 
           <MaterialIcons
@@ -143,6 +355,7 @@ export default function ProductCard({
     </TouchableOpacity>
 
   );
+
 }
 
 
@@ -151,7 +364,8 @@ const styles =
 
     card: {
       width: 135,
-      backgroundColor: "#FFFFFF",
+      backgroundColor:
+        "#FFFFFF",
       borderRadius: 9,
       padding: 6,
       marginRight: 7,
@@ -164,7 +378,8 @@ const styles =
       width: "100%",
       height: 100,
       borderRadius: 7,
-      backgroundColor: "#F5F5F5",
+      backgroundColor:
+        "#F5F5F5",
     },
 
 
@@ -178,8 +393,10 @@ const styles =
 
 
     priceRow: {
-      flexDirection: "row",
-      alignItems: "center",
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
       marginTop: 4,
     },
 
@@ -209,16 +426,19 @@ const styles =
 
 
     bottomRow: {
-      flexDirection: "row",
+      flexDirection:
+        "row",
       justifyContent:
         "space-between",
       marginTop: 6,
-      alignItems: "center",
+      alignItems:
+        "center",
     },
 
 
     cartButton: {
-      backgroundColor: "#16A34A",
+      backgroundColor:
+        "#16A34A",
       paddingHorizontal: 7,
       paddingVertical: 5,
       borderRadius: 6,

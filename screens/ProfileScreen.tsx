@@ -256,7 +256,27 @@ export default function ProfileScreen() {
             />
 
           </View>
+<TouchableOpacity
+  style={styles.editButton}
+  activeOpacity={0.8}
+  onPress={() =>
+    navigation.navigate(
+      "EditProfile"
+    )
+  }
+>
+  <MaterialIcons
+    name="edit"
+    size={18}
+    color="#16A34A"
+  />
 
+  <Text
+    style={styles.editButtonText}
+  >
+    Edit
+  </Text>
+</TouchableOpacity>
 
           <View
             style={styles.profileInfo}
@@ -436,7 +456,78 @@ export default function ProfileScreen() {
             />
 
           </TouchableOpacity>
+<TouchableOpacity
+  style={styles.menuRow}
+  activeOpacity={0.7}
+  onPress={() =>
+    navigation.navigate(
+      "RecentlyViewed"
+    )
+  }
+>
 
+  <View
+    style={styles.menuLeft}
+  >
+
+    <MaterialIcons
+      name="history"
+      size={21}
+      color="#16A34A"
+    />
+
+    <Text
+      style={styles.menuText}
+    >
+      Recently Viewed
+    </Text>
+
+  </View>
+
+
+  <MaterialIcons
+    name="chevron-right"
+    size={22}
+    color="#999999"
+  />
+
+</TouchableOpacity>
+<TouchableOpacity
+  style={styles.menuRow}
+  activeOpacity={0.7}
+  onPress={() =>
+    navigation.navigate(
+      "Support"
+    )
+  }
+>
+
+  <View
+    style={styles.menuLeft}
+  >
+
+    <MaterialIcons
+      name="support-agent"
+      size={21}
+      color="#16A34A"
+    />
+
+    <Text
+      style={styles.menuText}
+    >
+      Help & Support
+    </Text>
+
+  </View>
+
+
+  <MaterialIcons
+    name="chevron-right"
+    size={22}
+    color="#999999"
+  />
+
+</TouchableOpacity>
 
           <TouchableOpacity
             style={styles.menuRow}
@@ -687,7 +778,24 @@ const styles =
       fontWeight: "600",
       marginLeft: 11,
     },
+editButton: {
+  height: 36,
+  paddingHorizontal: 10,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "#16A34A",
+  backgroundColor: "#FFFFFF",
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+},
 
+editButtonText: {
+  marginLeft: 5,
+  fontSize: 12,
+  fontWeight: "800",
+  color: "#16A34A",
+},
 
     logoutButton: {
       marginHorizontal: 14,

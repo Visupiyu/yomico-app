@@ -1,4 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
 
 import {
   SafeAreaView,
@@ -16,18 +19,20 @@ import {
   getDocs,
   query,
   where,
-  deleteDoc,
-  doc,
 } from "firebase/firestore";
 
-import { auth, db } from "../firebase/firebase";
 import {
-  addToCart,
-} from "../services/cartService";
+  auth,
+  db,
+} from "../firebase/firebase";
 
-import { MaterialIcons } from "@expo/vector-icons";
+import {
+  MaterialIcons,
+} from "@expo/vector-icons";
 
-import { useNavigation } from "@react-navigation/native";
+import {
+  useNavigation,
+} from "@react-navigation/native";
 
 import {
   NativeStackNavigationProp,
@@ -41,45 +46,65 @@ import {
 type NavigationProp =
   NativeStackNavigationProp<
     RootStackParamList,
-    "Wishlist"
+    "RecentlyViewed"
   >;
 
 
-type WishlistItem = {
+type RecentlyViewedItem = {
+
   id: string;
+
   productId?: string;
+
   name?: string;
+
   price?: number;
+
   mrp?: number;
+
   image?: string;
-  discountPercent?: number;
+
   vendorId?: string;
+
   vendorName?: string;
+
+  discountPercent?: number;
+
+  viewedAt?: any;
+
 };
 
 
-export default function WishlistScreen() {
+export default function RecentlyViewedScreen() {
 
   const navigation =
     useNavigation<NavigationProp>();
 
 
-  const [wishlist, setWishlist] =
-    useState<WishlistItem[]>([]);
+  const [
+    products,
+    setProducts,
+  ] =
+    useState<
+      RecentlyViewedItem[]
+    >([]);
 
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
 
 
   useEffect(() => {
 
-    loadWishlist();
+    loadRecentlyViewed();
 
   }, []);
 
 
-  async function loadWishlist() {
+  async function loadRecentlyViewed() {
 
     const user =
       auth.currentUser;
@@ -87,7 +112,7 @@ export default function WishlistScreen() {
 
     if (!user) {
 
-      setWishlist([]);
+      setProducts([]);
 
       setLoading(false);
 
@@ -98,9 +123,12 @@ export default function WishlistScreen() {
 
     try {
 
-      const wishlistQuery =
+      const recentlyViewedQuery =
         query(
-          collection(db, "wishlist"),
+          collection(
+            db,
+            "recentlyViewed"
+          ),
           where(
             "userId",
             "==",
@@ -111,26 +139,74 @@ export default function WishlistScreen() {
 
       const snapshot =
         await getDocs(
-          wishlistQuery
+          recentlyViewedQuery
         );
 
 
       const items =
         snapshot.docs.map(
           (item) => ({
-            id: item.id,
+
+            id:
+              item.id,
+
             ...item.data(),
+
           })
-        ) as WishlistItem[];
+        ) as RecentlyViewedItem[];
 
 
-      setWishlist(items);
+      /*
+        Sort newest viewed products first.
+      */
+
+      items.sort(
+        (
+          a,
+          b
+        ) => {
+
+          const dateA =
+            a.viewedAt
+              ?.toDate?.()
+              ?.getTime?.() ||
+            0;
+
+
+          const dateB =
+            b.viewedAt
+              ?.toDate?.()
+              ?.getTime?.() ||
+            0;
+
+
+          return (
+            dateB -
+            dateA
+          );
+
+        }
+      );
+
+
+      /*
+        Show only latest 10.
+      */
+
+      setProducts(
+        items.slice(0, 10)
+      );
 
     } catch (error) {
 
       console.log(
-        "Wishlist loading error:",
+        "Recently Viewed loading error:",
         error
+      );
+
+      Alert.alert(
+        "Error",
+        "Unable to load recently viewed products."
       );
 
     } finally {
@@ -142,134 +218,73 @@ export default function WishlistScreen() {
   }
 
 
-  async function removeFromWishlist(
-    itemId: string
+  function openProduct(
+    item: RecentlyViewedItem
   ) {
 
-    try {
+    navigation.navigate(
+      "ProductDetails",
+      {
+        product: {
 
-      await deleteDoc(
-        doc(
-          db,
-          "wishlist",
-          itemId
-        )
-      );
+          id:
+            item.productId,
 
+          name:
+            item.name,
 
-      setWishlist(
-        (current) =>
-          current.filter(
-            (item) =>
-              item.id !== itemId
-          )
-      );
+          price:
+            item.price,
 
-    } catch (error) {
+          mrp:
+            item.mrp,
 
-      console.log(
-        "Wishlist remove error:",
-        error
-      );
+          image:
+            item.image,
 
-      Alert.alert(
-        "Error",
-        "Unable to remove item."
-      );
+          vendorId:
+            item.vendorId,
 
-    }
+          vendorName:
+            item.vendorName,
 
-  }
-async function addWishlistItemToCart(
-  item: WishlistItem
-) {
+          discountPercent:
+            item.discountPercent,
 
-  try {
+        },
 
-    await addToCart({
-
-      id:
-        item.productId,
-
-      name:
-        item.name,
-
-      image:
-        item.image,
-
-      price:
-        item.price,
-
-      mrp:
-        item.mrp,
-
-      discountPercent:
-        item.discountPercent,
-
-      vendorId:
-        item.vendorId,
-
-      vendorName:
-        item.vendorName,
-
-    });
-
-
-    Alert.alert(
-      "Added to Cart",
-      `${item.name || "Product"} has been added to your cart.`
-    );
-
-  } catch (error) {
-
-    console.log(
-      "Wishlist Add To Cart Error:",
-      error
-    );
-
-    Alert.alert(
-      "Error",
-      "Unable to add product to cart."
+      }
     );
 
   }
-
-}
-
-  function openProduct(
-  item: WishlistItem
-) {
-
-  navigation.navigate(
-    "ProductDetails",
-    {
-      product: item,
-    }
-  );
-
-}
 
 
   function renderItem({
     item,
   }: {
-    item: WishlistItem;
+    item:
+      RecentlyViewedItem;
   }) {
 
     const price =
-      Number(item.price || 0);
+      Number(
+        item.price || 0
+      );
 
 
     const mrp =
-      Number(item.mrp || 0);
+      Number(
+        item.mrp || 0
+      );
 
 
     const discount =
       mrp > price
         ? Math.round(
-            ((mrp - price) /
-              mrp) *
-              100
+            (
+              (mrp - price) /
+              mrp
+            ) * 100
           )
         : 0;
 
@@ -277,24 +292,33 @@ async function addWishlistItemToCart(
     return (
 
       <TouchableOpacity
-        style={styles.card}
+        style={
+          styles.card
+        }
         activeOpacity={0.85}
         onPress={() =>
-          openProduct(item)
+          openProduct(
+            item
+          )
         }
       >
 
         <View
-          style={styles.imageContainer}
+          style={
+            styles.imageContainer
+          }
         >
 
           {item.image ? (
 
             <Image
               source={{
-                uri: item.image,
+                uri:
+                  item.image,
               }}
-              style={styles.image}
+              style={
+                styles.image
+              }
               resizeMode="contain"
             />
 
@@ -312,11 +336,15 @@ async function addWishlistItemToCart(
 
 
         <View
-          style={styles.details}
+          style={
+            styles.details
+          }
         >
 
           <Text
-            style={styles.productName}
+            style={
+              styles.productName
+            }
             numberOfLines={2}
           >
             {item.name ||
@@ -325,11 +353,15 @@ async function addWishlistItemToCart(
 
 
           <View
-            style={styles.priceRow}
+            style={
+              styles.priceRow
+            }
           >
 
             <Text
-              style={styles.price}
+              style={
+                styles.price
+              }
             >
               ₹{price}
             </Text>
@@ -338,7 +370,9 @@ async function addWishlistItemToCart(
             {mrp > price && (
 
               <Text
-                style={styles.mrp}
+                style={
+                  styles.mrp
+                }
               >
                 ₹{mrp}
               </Text>
@@ -351,67 +385,49 @@ async function addWishlistItemToCart(
           {discount > 0 && (
 
             <Text
-              style={styles.discount}
+              style={
+                styles.discount
+              }
             >
               {discount}% OFF
             </Text>
 
           )}
-<TouchableOpacity
-  style={
-    styles.addCartButton
-  }
-  activeOpacity={0.8}
-  onPress={() =>
-    addWishlistItemToCart(
-      item
-    )
-}
->
 
-  <MaterialIcons
-    name="shopping-cart"
-    size={18}
-    color="#FFFFFF"
-  />
 
-  <Text
-    style={
-      styles.addCartText
-    }
-  >
-    Add to Cart
-  </Text>
-
-</TouchableOpacity>
-
-          <TouchableOpacity
+          <Text
             style={
-              styles.removeButton
+              styles.vendor
             }
-            activeOpacity={0.8}
-            onPress={() =>
-              removeFromWishlist(
-                item.id
-              )
+            numberOfLines={1}
+          >
+            Sold by{" "}
+            {item.vendorName ||
+              "YOMICO Seller"}
+          </Text>
+
+
+          <View
+            style={
+              styles.viewProductRow
             }
           >
 
-            <MaterialIcons
-              name="favorite"
-              size={18}
-              color="#E53935"
-            />
-
             <Text
               style={
-                styles.removeText
+                styles.viewProductText
               }
             >
-              Remove
+              View Product
             </Text>
 
-          </TouchableOpacity>
+            <MaterialIcons
+              name="arrow-forward"
+              size={16}
+              color="#16A34A"
+            />
+
+          </View>
 
         </View>
 
@@ -425,27 +441,35 @@ async function addWishlistItemToCart(
   return (
 
     <SafeAreaView
-      style={styles.container}
+      style={
+        styles.container
+      }
     >
 
       <View
-        style={styles.header}
+        style={
+          styles.header
+        }
       >
 
         <Text
-          style={styles.title}
+          style={
+            styles.title
+          }
         >
-          Wishlist
+          Recently Viewed
         </Text>
 
 
         <Text
-          style={styles.count}
+          style={
+            styles.count
+          }
         >
-          {wishlist.length}{" "}
-          {wishlist.length === 1
-            ? "item"
-            : "items"}
+          {products.length}{" "}
+          {products.length === 1
+            ? "product"
+            : "products"}
         </Text>
 
       </View>
@@ -460,14 +484,16 @@ async function addWishlistItemToCart(
         >
 
           <Text
-            style={styles.emptyText}
+            style={
+              styles.loadingText
+            }
           >
-            Loading wishlist...
+            Loading recently viewed...
           </Text>
 
         </View>
 
-      ) : wishlist.length === 0 ? (
+      ) : products.length === 0 ? (
 
         <View
           style={
@@ -476,24 +502,28 @@ async function addWishlistItemToCart(
         >
 
           <MaterialIcons
-            name="favorite-border"
-            size={52}
+            name="history"
+            size={55}
             color="#BBBBBB"
           />
 
 
           <Text
-            style={styles.emptyTitle}
+            style={
+              styles.emptyTitle
+            }
           >
-            Your Wishlist is Empty
+            No Recently Viewed Products
           </Text>
 
 
           <Text
-            style={styles.emptySubtitle}
+            style={
+              styles.emptySubtitle
+            }
           >
-            Save products you love
-            and find them here.
+            Products you view will
+            appear here.
           </Text>
 
 
@@ -524,9 +554,10 @@ async function addWishlistItemToCart(
       ) : (
 
         <FlatList
-          data={wishlist}
-          keyExtractor={(item) =>
-            item.id
+          data={products}
+          keyExtractor={
+            (item) =>
+              item.id
           }
           renderItem={
             renderItem
@@ -544,6 +575,7 @@ async function addWishlistItemToCart(
     </SafeAreaView>
 
   );
+
 }
 
 
@@ -552,19 +584,25 @@ const styles =
 
     container: {
       flex: 1,
-      backgroundColor: "#F5F5F5",
+      backgroundColor:
+        "#F5F5F5",
     },
 
 
     header: {
-      backgroundColor: "#FFFFFF",
+      backgroundColor:
+        "#FFFFFF",
       paddingHorizontal: 14,
       paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: "#EEEEEE",
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
+      borderBottomColor:
+        "#EEEEEE",
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      justifyContent:
+        "space-between",
     },
 
 
@@ -589,13 +627,16 @@ const styles =
 
 
     card: {
-      backgroundColor: "#FFFFFF",
+      backgroundColor:
+        "#FFFFFF",
       borderRadius: 10,
       marginBottom: 10,
       padding: 10,
-      flexDirection: "row",
+      flexDirection:
+        "row",
       borderWidth: 1,
-      borderColor: "#EEEEEE",
+      borderColor:
+        "#EEEEEE",
     },
 
 
@@ -603,10 +644,14 @@ const styles =
       width: 105,
       height: 105,
       borderRadius: 8,
-      backgroundColor: "#F8F8F8",
-      alignItems: "center",
-      justifyContent: "center",
-      overflow: "hidden",
+      backgroundColor:
+        "#F8F8F8",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      overflow:
+        "hidden",
     },
 
 
@@ -619,7 +664,8 @@ const styles =
     details: {
       flex: 1,
       marginLeft: 11,
-      justifyContent: "center",
+      justifyContent:
+        "center",
     },
 
 
@@ -632,8 +678,10 @@ const styles =
 
 
     priceRow: {
-      flexDirection: "row",
-      alignItems: "center",
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
       marginTop: 7,
     },
 
@@ -660,49 +708,43 @@ const styles =
       color: "#C2185B",
       marginTop: 4,
     },
-addCartButton: {
-  alignSelf: "flex-start",
-  flexDirection: "row",
-  alignItems: "center",
-  backgroundColor: "#16A34A",
-  paddingHorizontal: 12,
-  paddingVertical: 7,
-  borderRadius: 7,
-  marginTop: 9,
-},
 
-addCartText: {
-  fontSize: 11,
-  fontWeight: "700",
-  color: "#FFFFFF",
-  marginLeft: 5,
-},
 
-    removeButton: {
-      alignSelf: "flex-start",
-      flexDirection: "row",
-      alignItems: "center",
+    vendor: {
+      fontSize: 10,
+      color: "#777777",
+      marginTop: 5,
+    },
+
+
+    viewProductRow: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
       marginTop: 8,
     },
 
 
-    removeText: {
+    viewProductText: {
       fontSize: 11,
       fontWeight: "700",
-      color: "#E53935",
-      marginLeft: 4,
+      color: "#16A34A",
+      marginRight: 4,
     },
 
 
     emptyContainer: {
       flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
       paddingHorizontal: 30,
     },
 
 
-    emptyText: {
+    loadingText: {
       fontSize: 12,
       color: "#777777",
     },
@@ -713,20 +755,24 @@ addCartText: {
       fontWeight: "800",
       color: "#222222",
       marginTop: 12,
+      textAlign:
+        "center",
     },
 
 
     emptySubtitle: {
       fontSize: 12,
       color: "#777777",
-      textAlign: "center",
+      textAlign:
+        "center",
       marginTop: 5,
     },
 
 
     shopButton: {
       marginTop: 18,
-      backgroundColor: "#16A34A",
+      backgroundColor:
+        "#16A34A",
       paddingHorizontal: 18,
       paddingVertical: 11,
       borderRadius: 8,

@@ -1,4 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
 
 import {
   SafeAreaView,
@@ -18,12 +21,36 @@ import {
   query,
   where,
   deleteDoc,
-  doc,
+  doc, updateDoc,
 } from "firebase/firestore";
 
-import { auth, db } from "../firebase/firebase";
+import {
+  auth,
+  db,
+} from "../firebase/firebase";
 
-import { MaterialIcons } from "@expo/vector-icons";
+import {
+  MaterialIcons,
+} from "@expo/vector-icons";
+
+import {
+  useNavigation,
+} from "@react-navigation/native";
+
+import {
+  NativeStackNavigationProp,
+} from "@react-navigation/native-stack";
+
+import {
+  RootStackParamList,
+} from "../navigation/AppNavigator";
+
+
+type NavigationProp =
+  NativeStackNavigationProp<
+    RootStackParamList,
+    "Address"
+  >;
 
 
 type Address = {
@@ -39,6 +66,10 @@ type Address = {
 
 
 export default function AddressScreen() {
+
+  const navigation =
+    useNavigation<NavigationProp>();
+
 
   const [addresses, setAddresses] =
     useState<Address[]>([]);
@@ -80,10 +111,15 @@ export default function AddressScreen() {
     const user =
       auth.currentUser;
 
+
     if (!user) {
+
       setLoading(false);
+
       return;
+
     }
+
 
     try {
 
@@ -100,20 +136,29 @@ export default function AddressScreen() {
           )
         );
 
+
       const snapshot =
         await getDocs(
           addressQuery
         );
 
+
       const data =
         snapshot.docs.map(
           (item) => ({
-            id: item.id,
+
+            id:
+              item.id,
+
             ...item.data(),
+
           })
         ) as Address[];
 
-      setAddresses(data);
+
+      setAddresses(
+        data
+      );
 
     } catch (error) {
 
@@ -127,6 +172,7 @@ export default function AddressScreen() {
       setLoading(false);
 
     }
+
   }
 
 
@@ -134,6 +180,7 @@ export default function AddressScreen() {
 
     const user =
       auth.currentUser;
+
 
     if (!user) {
 
@@ -143,6 +190,7 @@ export default function AddressScreen() {
       );
 
       return;
+
     }
 
 
@@ -161,6 +209,7 @@ export default function AddressScreen() {
       );
 
       return;
+
     }
 
 
@@ -174,6 +223,7 @@ export default function AddressScreen() {
       );
 
       return;
+
     }
 
 
@@ -187,6 +237,7 @@ export default function AddressScreen() {
       );
 
       return;
+
     }
 
 
@@ -217,7 +268,7 @@ export default function AddressScreen() {
 
         pincode:
           pincode.trim(),
-
+isDefault: addresses.length === 0,
       };
 
 
@@ -233,11 +284,16 @@ export default function AddressScreen() {
 
       setAddresses(
         (current) => [
+
           ...current,
+
           {
-            id: document.id,
+            id:
+              document.id,
+
             ...addressData,
           },
+
         ]
       );
 
@@ -300,6 +356,11 @@ export default function AddressScreen() {
       );
 
 
+      Alert.alert(
+        "Removed",
+        "Address removed successfully."
+      );
+
     } catch (error) {
 
       console.log(
@@ -315,7 +376,80 @@ export default function AddressScreen() {
     }
 
   }
+async function setDefaultAddress(
+  addressId: string
+) {
 
+  const user =
+    auth.currentUser;
+
+  if (!user) {
+    return;
+  }
+
+  try {
+
+    const snapshot =
+      await getDocs(
+        query(
+          collection(
+            db,
+            "addresses"
+          ),
+          where(
+            "userId",
+            "==",
+            user.uid
+          )
+        )
+      );
+
+    const updates =
+      snapshot.docs.map(
+        async (item) => {
+
+          await updateDoc(
+            doc(
+              db,
+              "addresses",
+              item.id
+            ),
+            {
+              isDefault:
+                item.id ===
+                addressId,
+            }
+          );
+
+        }
+      );
+
+    await Promise.all(
+      updates
+    );
+
+    await loadAddresses();
+
+    Alert.alert(
+      "Default Address",
+      "Default address updated successfully."
+    );
+
+  } catch (error) {
+
+    console.log(
+      "Default address error:",
+      error
+    );
+
+    Alert.alert(
+      "Error",
+      "Unable to update default address."
+    );
+
+  }
+
+}
 
   return (
 
@@ -365,7 +499,9 @@ export default function AddressScreen() {
 
           <TextInput
             value={name}
-            onChangeText={setName}
+            onChangeText={
+              setName
+            }
             placeholder="Enter full name"
             placeholderTextColor="#999999"
             style={styles.input}
@@ -381,7 +517,9 @@ export default function AddressScreen() {
 
           <TextInput
             value={mobile}
-            onChangeText={setMobile}
+            onChangeText={
+              setMobile
+            }
             placeholder="10-digit mobile number"
             placeholderTextColor="#999999"
             keyboardType="phone-pad"
@@ -399,7 +537,9 @@ export default function AddressScreen() {
 
           <TextInput
             value={address}
-            onChangeText={setAddress}
+            onChangeText={
+              setAddress
+            }
             placeholder="House / Flat / Street"
             placeholderTextColor="#999999"
             multiline
@@ -419,7 +559,9 @@ export default function AddressScreen() {
 
           <TextInput
             value={city}
-            onChangeText={setCity}
+            onChangeText={
+              setCity
+            }
             placeholder="Enter city"
             placeholderTextColor="#999999"
             style={styles.input}
@@ -435,7 +577,9 @@ export default function AddressScreen() {
 
           <TextInput
             value={state}
-            onChangeText={setState}
+            onChangeText={
+              setState
+            }
             placeholder="Enter state"
             placeholderTextColor="#999999"
             style={styles.input}
@@ -451,7 +595,9 @@ export default function AddressScreen() {
 
           <TextInput
             value={pincode}
-            onChangeText={setPincode}
+            onChangeText={
+              setPincode
+            }
             placeholder="6-digit pincode"
             placeholderTextColor="#999999"
             keyboardType="number-pad"
@@ -469,7 +615,9 @@ export default function AddressScreen() {
             ]}
             activeOpacity={0.8}
             disabled={saving}
-            onPress={saveAddress}
+            onPress={
+              saveAddress
+            }
           >
 
             <MaterialIcons
@@ -479,7 +627,9 @@ export default function AddressScreen() {
             />
 
             <Text
-              style={styles.saveButtonText}
+              style={
+                styles.saveButtonText
+              }
             >
               {saving
                 ? "Saving..."
@@ -549,6 +699,8 @@ export default function AddressScreen() {
                   style={styles.addressCard}
                 >
 
+                  {/* ADDRESS DETAILS */}
+
                   <View
                     style={styles.addressTop}
                   >
@@ -616,33 +768,80 @@ export default function AddressScreen() {
                   </View>
 
 
-                  <TouchableOpacity
+                  {/* ACTIONS */}
+
+                  <View
                     style={
-                      styles.deleteButton
-                    }
-                    activeOpacity={0.7}
-                    onPress={() =>
-                      removeAddress(
-                        item.id
-                      )
+                      styles.addressActions
                     }
                   >
 
-                    <MaterialIcons
-                      name="delete-outline"
-                      size={18}
-                      color="#E53935"
-                    />
+                    {/* EDIT */}
 
-                    <Text
+                    <TouchableOpacity
                       style={
-                        styles.deleteText
+                        styles.editButton
+                      }
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        navigation.navigate(
+                          "EditAddress",
+                          {
+                            addressId:
+                              item.id,
+                          }
+                        )
                       }
                     >
-                      Remove
-                    </Text>
 
-                  </TouchableOpacity>
+                      <MaterialIcons
+                        name="edit"
+                        size={18}
+                        color="#16A34A"
+                      />
+
+                      <Text
+                        style={
+                          styles.editText
+                        }
+                      >
+                        Edit
+                      </Text>
+
+                    </TouchableOpacity>
+
+
+                    {/* REMOVE */}
+
+                    <TouchableOpacity
+                      style={
+                        styles.deleteButton
+                      }
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        removeAddress(
+                          item.id
+                        )
+                      }
+                    >
+
+                      <MaterialIcons
+                        name="delete-outline"
+                        size={18}
+                        color="#E53935"
+                      />
+
+                      <Text
+                        style={
+                          styles.deleteText
+                        }
+                      >
+                        Remove
+                      </Text>
+
+                    </TouchableOpacity>
+
+                  </View>
 
                 </View>
 
@@ -663,6 +862,7 @@ export default function AddressScreen() {
     </SafeAreaView>
 
   );
+
 }
 
 
@@ -674,7 +874,6 @@ const styles =
       backgroundColor: "#F5F5F5",
     },
 
-
     header: {
       backgroundColor: "#FFFFFF",
       paddingHorizontal: 14,
@@ -683,20 +882,17 @@ const styles =
       borderBottomColor: "#EEEEEE",
     },
 
-
     title: {
       fontSize: 20,
       fontWeight: "800",
       color: "#222222",
     },
 
-
     form: {
       backgroundColor: "#FFFFFF",
       marginTop: 7,
       padding: 14,
     },
-
 
     sectionTitle: {
       fontSize: 16,
@@ -705,14 +901,12 @@ const styles =
       marginBottom: 11,
     },
 
-
     label: {
       fontSize: 12,
       fontWeight: "700",
       color: "#444444",
       marginBottom: 5,
     },
-
 
     input: {
       height: 43,
@@ -726,13 +920,11 @@ const styles =
       marginBottom: 11,
     },
 
-
     addressInput: {
       height: 65,
       paddingTop: 10,
       textAlignVertical: "top",
     },
-
 
     saveButton: {
       height: 45,
@@ -744,11 +936,9 @@ const styles =
       marginTop: 2,
     },
 
-
     disabledButton: {
       opacity: 0.6,
     },
-
 
     saveButtonText: {
       color: "#FFFFFF",
@@ -757,13 +947,11 @@ const styles =
       marginLeft: 7,
     },
 
-
     savedSection: {
       backgroundColor: "#FFFFFF",
       marginTop: 7,
       padding: 14,
     },
-
 
     addressCard: {
       borderWidth: 1,
@@ -773,11 +961,9 @@ const styles =
       marginBottom: 9,
     },
 
-
     addressTop: {
       flexDirection: "row",
     },
-
 
     addressIcon: {
       width: 34,
@@ -788,12 +974,10 @@ const styles =
       justifyContent: "center",
     },
 
-
     addressDetails: {
       flex: 1,
       marginLeft: 9,
     },
-
 
     addressName: {
       fontSize: 13,
@@ -801,13 +985,11 @@ const styles =
       color: "#222222",
     },
 
-
     addressMobile: {
       fontSize: 11,
       color: "#666666",
       marginTop: 2,
     },
-
 
     addressText: {
       fontSize: 11,
@@ -816,14 +998,30 @@ const styles =
       marginTop: 3,
     },
 
-
-    deleteButton: {
-      alignSelf: "flex-end",
+    addressActions: {
       flexDirection: "row",
       alignItems: "center",
-      marginTop: 8,
+      justifyContent: "flex-end",
+      marginTop: 10,
     },
 
+    editButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginRight: 18,
+    },
+
+    editText: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: "#16A34A",
+      marginLeft: 4,
+    },
+
+    deleteButton: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
 
     deleteText: {
       fontSize: 11,
@@ -832,7 +1030,6 @@ const styles =
       marginLeft: 4,
     },
 
-
     message: {
       fontSize: 12,
       color: "#777777",
@@ -840,12 +1037,10 @@ const styles =
       paddingVertical: 15,
     },
 
-
     emptyBox: {
       alignItems: "center",
       paddingVertical: 20,
     },
-
 
     emptyTitle: {
       fontSize: 15,
@@ -854,13 +1049,11 @@ const styles =
       marginTop: 8,
     },
 
-
     emptyText: {
       fontSize: 11,
       color: "#777777",
       marginTop: 4,
     },
-
 
     bottomSpace: {
       height: 25,

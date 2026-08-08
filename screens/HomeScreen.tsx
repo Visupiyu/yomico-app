@@ -176,7 +176,23 @@ export default function HomeScreen() {
         color="#16A34A"
       />
     </TouchableOpacity>
+{/* Notifications */}
 
+<TouchableOpacity
+  onPress={() =>
+    navigation.navigate(
+      "Notifications"
+    )
+  }
+  style={styles.headerIconButton}
+  activeOpacity={0.7}
+>
+  <MaterialIcons
+    name="notifications-none"
+    size={22}
+    color="#16A34A"
+  />
+</TouchableOpacity>
 
     {/* Cart */}
 

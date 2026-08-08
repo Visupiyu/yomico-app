@@ -28,7 +28,7 @@ import { auth, db } from "../firebase/firebase";
 
 import {
   RouteProp,
-  useRoute,
+  useRoute, useNavigation,
 } from "@react-navigation/native";
 
 import {
@@ -36,7 +36,12 @@ import {
 } from "../navigation/AppNavigator";
 
 import { addToCart } from "../services/cartService";
-
+import {
+  saveRecentlyViewed,
+} from "../services/recentlyViewedService";
+import {
+  NativeStackNavigationProp,
+} from "@react-navigation/native-stack";
 
 type ProductDetailsRouteProp =
   RouteProp<
@@ -60,8 +65,17 @@ const [averageRating, setAverageRating] =
 
 const [reviewCount, setReviewCount] =
   useState(0);
+  const navigation =
+  useNavigation<
+    NativeStackNavigationProp<
+      RootStackParamList,
+      "ProductDetails"
+    >
+  >();
 useEffect(() => {
-
+saveRecentlyViewed(
+    product
+  );
   loadReviews();
   async function loadReviews() {
 
@@ -343,6 +357,66 @@ useEffect(() => {
   </Text>
 
 </View>
+<TouchableOpacity
+  style={styles.questionsButton}
+  onPress={() =>
+  navigation.navigate(
+  "ProductQuestions",
+  {
+    productId: product.id,
+    productName: product.name,
+    vendorId: product.vendorId,
+    vendorName: product.vendorName,
+  }
+)
+  }
+>
+  <TouchableOpacity
+  style={styles.chatButton}
+  onPress={() =>
+    navigation.navigate(
+      "Chat",
+      {
+        productId:
+          product.id,
+        productName:
+          product.name,
+        vendorId:
+          product.vendorId,
+        vendorName:
+          product.vendorName,
+      }
+    )
+  }
+>
+
+  <MaterialIcons
+    name="chat"
+    size={20}
+    color="#FFFFFF"
+  />
+
+  <Text
+    style={styles.chatButtonText}
+  >
+    Chat with Seller
+  </Text>
+
+</TouchableOpacity>
+
+  <MaterialIcons
+    name="help-outline"
+    size={20}
+    color="#16A34A"
+  />
+
+  <Text
+    style={styles.questionsButtonText}
+  >
+    Questions & Answers
+  </Text>
+
+</TouchableOpacity>
 
           <View
             style={styles.priceRow}
@@ -705,6 +779,40 @@ reviewDate: {
   fontSize: 10,
   color: "#888888",
   marginTop: 7,
+},
+questionsButton: {
+  marginTop: 15,
+  height: 44,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "#16A34A",
+  backgroundColor: "#FFFFFF",
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+questionsButtonText: {
+  marginLeft: 7,
+  fontSize: 13,
+  fontWeight: "800",
+  color: "#16A34A",
+},
+chatButton: {
+  marginTop: 10,
+  height: 44,
+  borderRadius: 8,
+  backgroundColor: "#16A34A",
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+chatButtonText: {
+  marginLeft: 7,
+  fontSize: 13,
+  fontWeight: "800",
+  color: "#FFFFFF",
 },
 
     wishlistButton: {

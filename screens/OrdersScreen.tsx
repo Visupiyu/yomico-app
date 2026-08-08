@@ -132,7 +132,56 @@ const navigation =
 
 
   if (loading) {
+function getStatusStyle(
+  status?: string
+) {
+  switch (status) {
 
+    case "Confirmed":
+      return {
+        backgroundColor: "#E0F2FE",
+        textColor: "#0284C7",
+      };
+
+    case "Packed":
+      return {
+        backgroundColor: "#EDE9FE",
+        textColor: "#7C3AED",
+      };
+
+    case "Shipped":
+      return {
+        backgroundColor: "#E0E7FF",
+        textColor: "#4F46E5",
+      };
+
+    case "Out for delivery":
+      return {
+        backgroundColor: "#FFF7ED",
+        textColor: "#EA580C",
+      };
+
+    case "Delivered":
+      return {
+        backgroundColor: "#DCFCE7",
+        textColor: "#16A34A",
+      };
+
+    case "Cancelled":
+      return {
+        backgroundColor: "#FEE2E2",
+        textColor: "#DC2626",
+      };
+
+    case "Pending":
+    default:
+      return {
+        backgroundColor: "#FFF4D6",
+        textColor: "#A66A00",
+      };
+
+  }
+}
     return (
 
       <SafeAreaView
@@ -485,25 +534,45 @@ const navigation =
                     Order Status
                   </Text>
 
-                  <View
-                    style={
-                      styles.statusBadge
-                    }
-                  >
-
-                    <Text
-                      style={
-                        styles.statusText
-                      }
-                    >
-                      {
-                        item.status ||
-                        "Pending"
-                      }
-                    </Text>
-
-                  </View>
-
+<View
+  style={[
+    styles.statusBadge,
+    item.status === "Delivered"
+      ? styles.statusDelivered
+      : item.status === "Cancelled"
+      ? styles.statusCancelled
+      : item.status === "Confirmed"
+      ? styles.statusConfirmed
+      : item.status === "Packed"
+      ? styles.statusPacked
+      : item.status === "Shipped"
+      ? styles.statusShipped
+      : item.status === "Out for delivery"
+      ? styles.statusOutForDelivery
+      : styles.statusPending,
+  ]}
+>
+  <Text
+    style={[
+      styles.statusText,
+      item.status === "Delivered"
+        ? styles.statusTextDelivered
+        : item.status === "Cancelled"
+        ? styles.statusTextCancelled
+        : item.status === "Confirmed"
+        ? styles.statusTextConfirmed
+        : item.status === "Packed"
+        ? styles.statusTextPacked
+        : item.status === "Shipped"
+        ? styles.statusTextShipped
+        : item.status === "Out for delivery"
+        ? styles.statusTextOutForDelivery
+        : styles.statusTextPending,
+    ]}
+  >
+    {item.status || "Pending"}
+  </Text>
+</View>
                 </View>
 
               </TouchableOpacity>
@@ -695,20 +764,72 @@ const styles =
       fontWeight: "600",
     },
 
+statusBadge: {
+  paddingHorizontal: 9,
+  paddingVertical: 4,
+  borderRadius: 6,
+},
 
-    statusBadge: {
-      backgroundColor: "#FFF4D6",
-      paddingHorizontal: 9,
-      paddingVertical: 4,
-      borderRadius: 6,
-    },
+statusText: {
+  fontSize: 11,
+  fontWeight: "700",
+},
 
+statusPending: {
+  backgroundColor: "#FFF4D6",
+},
 
-    statusText: {
-      fontSize: 11,
-      color: "#A66A00",
-      fontWeight: "700",
-    },
+statusConfirmed: {
+  backgroundColor: "#E0F2FE",
+},
+
+statusPacked: {
+  backgroundColor: "#EDE9FE",
+},
+
+statusShipped: {
+  backgroundColor: "#E0E7FF",
+},
+
+statusOutForDelivery: {
+  backgroundColor: "#FFF7ED",
+},
+
+statusDelivered: {
+  backgroundColor: "#DCFCE7",
+},
+
+statusCancelled: {
+  backgroundColor: "#FEE2E2",
+},
+
+statusTextPending: {
+  color: "#A66A00",
+},
+
+statusTextConfirmed: {
+  color: "#0284C7",
+},
+
+statusTextPacked: {
+  color: "#7C3AED",
+},
+
+statusTextShipped: {
+  color: "#4F46E5",
+},
+
+statusTextOutForDelivery: {
+  color: "#EA580C",
+},
+
+statusTextDelivered: {
+  color: "#16A34A",
+},
+
+statusTextCancelled: {
+  color: "#DC2626",
+},
 
 
     loadingContainer: {
