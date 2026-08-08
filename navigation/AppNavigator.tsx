@@ -1,8 +1,12 @@
 import React from "react";
 
-import { NavigationContainer } from "@react-navigation/native";
+import {
+  NavigationContainer,
+} from "@react-navigation/native";
 
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import {
+  createNativeStackNavigator,
+} from "@react-navigation/native-stack";
 
 import SplashScreen from "../screens/SplashScreen";
 import LoginScreen from "../screens/LoginScreen";
@@ -10,16 +14,37 @@ import RegisterScreen from "../screens/RegisterScreen";
 import HomeScreen from "../screens/HomeScreen";
 import ProductDetailsScreen from "../screens/ProductDetailsScreen";
 import CartScreen from "../screens/CartScreen";
+import CheckoutScreen from "../screens/CheckoutScreen";
+import OrdersScreen from "../screens/OrdersScreen";
+
 export type RootStackParamList = {
+
   Splash: undefined;
+
   Login: undefined;
+
   Register: undefined;
+
   Home: undefined;
-  ProductDetails: { product: any };
+
+  ProductDetails: {
+    product: any;
+    
+  };
+
   Cart: undefined;
+
+  Checkout: undefined;
+  Orders: undefined;
+
 };
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const Stack =
+  createNativeStackNavigator<
+    RootStackParamList
+  >();
+
 
 export default function AppNavigator() {
 
@@ -34,33 +59,50 @@ export default function AppNavigator() {
         }}
       >
 
-       <Stack.Screen
-  name="Splash"
-  component={SplashScreen}
-/>
+        <Stack.Screen
+          name="Splash"
+          component={SplashScreen}
+        />
 
-<Stack.Screen
-  name="Login"
-  component={LoginScreen}
-/>
 
-<Stack.Screen
-  name="Register"
-  component={RegisterScreen}
-/>
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+        />
 
-<Stack.Screen
-  name="Home"
-  component={HomeScreen}
+
+        <Stack.Screen
+          name="Register"
+          component={RegisterScreen}
+        />
+
+
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
+        />
+
+
+        <Stack.Screen
+          name="ProductDetails"
+          component={ProductDetailsScreen}
+        />
+
+
+        <Stack.Screen
+          name="Cart"
+          component={CartScreen}
+        />
+
+
+        <Stack.Screen
+          name="Checkout"
+          component={CheckoutScreen}
+        />
+        <Stack.Screen
+  name="Orders"
+  component={OrdersScreen}
 />
- <Stack.Screen
-  name="ProductDetails"
-  component={ProductDetailsScreen}
-/>    
-<Stack.Screen
-  name="Cart"
-  component={CartScreen}
-/>  
 
       </Stack.Navigator>
 
