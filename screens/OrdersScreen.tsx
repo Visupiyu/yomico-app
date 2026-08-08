@@ -8,6 +8,7 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 
 import {
@@ -18,6 +19,15 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase/firebase";
+import { useNavigation } from "@react-navigation/native";
+
+import {
+  NativeStackNavigationProp,
+} from "@react-navigation/native-stack";
+
+import {
+  RootStackParamList,
+} from "../navigation/AppNavigator";
 
 
 export default function OrdersScreen() {
@@ -28,7 +38,13 @@ export default function OrdersScreen() {
   const [loading, setLoading] =
     useState(true);
 
-
+const navigation =
+  useNavigation<
+    NativeStackNavigationProp<
+      RootStackParamList,
+      "Orders"
+    >
+  >();
   useEffect(() => {
     loadOrders();
   }, []);
@@ -218,9 +234,18 @@ export default function OrdersScreen() {
 
             return (
 
-              <View
-                style={styles.orderCard}
-              >
+              <TouchableOpacity
+  style={styles.orderCard}
+  activeOpacity={0.8}
+  onPress={() =>
+    navigation.navigate(
+      "OrderDetails",
+      {
+        order: item,
+      }
+    )
+  }
+>
 
                 <View
                   style={styles.orderHeader}
@@ -481,7 +506,7 @@ export default function OrdersScreen() {
 
                 </View>
 
-              </View>
+              </TouchableOpacity>
 
             );
 

@@ -16,27 +16,18 @@ import ProductDetailsScreen from "../screens/ProductDetailsScreen";
 import CartScreen from "../screens/CartScreen";
 import CheckoutScreen from "../screens/CheckoutScreen";
 import OrdersScreen from "../screens/OrdersScreen";
+import OrderDetailsScreen from "../screens/OrderDetailsScreen";
 
 export type RootStackParamList = {
-
   Splash: undefined;
-
   Login: undefined;
-
   Register: undefined;
-
   Home: undefined;
-
-  ProductDetails: {
-    product: any;
-    
-  };
-
+  ProductDetails: {product: any;};
   Cart: undefined;
-
   Checkout: undefined;
   Orders: undefined;
-
+OrderDetails: {order: any;};
 };
 
 
@@ -102,6 +93,10 @@ export default function AppNavigator() {
         <Stack.Screen
   name="Orders"
   component={OrdersScreen}
+/>
+<Stack.Screen
+  name="OrderDetails"
+  component={OrderDetailsScreen}
 />
 
       </Stack.Navigator>
