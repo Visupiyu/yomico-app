@@ -1,9 +1,12 @@
 import React, {
   useEffect,
+  useRef,
   useState,
 } from "react";
 
 import {
+  Dimensions,
+  Image,
   View,
   Text,
   StyleSheet,
@@ -11,19 +14,24 @@ import {
   ScrollView,
   TextInput,
   FlatList,
-  Image,
   TouchableOpacity,
 } from "react-native";
 
-import { MaterialIcons } from "@expo/vector-icons";
+import {
+  MaterialIcons,
+} from "@expo/vector-icons";
 
-import { getProducts } from "../services/productService";
+import {
+  getProducts,
+} from "../services/productService";
 
 import ProductCard from "../components/ProductCard";
 
-import { useNavigation } from "@react-navigation/native";
-
 import {
+  useNavigation,
+} from "@react-navigation/native";
+
+import type {
   NativeStackNavigationProp,
 } from "@react-navigation/native-stack";
 
@@ -43,13 +51,30 @@ export default function HomeScreen() {
 
   const navigation =
     useNavigation<NavigationProp>();
+const heroRef = useRef<ScrollView>(null);
 
-  const [products, setProducts] =
+const [heroIndex, setHeroIndex] = useState(0);
+
+const heroSlides = [
+  require("../assets/home/hero-smartphones.png"),
+  require("../assets/home/hero-big-deals.png"),
+  require("../assets/home/hero-home-appliances.png"),
+  require("../assets/home/hero-fashion.png"),
+];
+
+  const [
+    products,
+    setProducts,
+  ] =
     useState<any[]>([]);
 
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
+
 
   useEffect(() => {
 
@@ -84,433 +109,888 @@ export default function HomeScreen() {
 
 
   const categories = [
+
     {
       name: "Grocery",
       icon: "🍎",
     },
+
     {
       name: "Mobiles",
       icon: "📱",
     },
+
     {
       name: "Fashion",
       icon: "👕",
     },
+
     {
       name: "Beauty",
       icon: "💄",
     },
+
     {
       name: "Furniture",
       icon: "🛋️",
     },
+
     {
       name: "Kids",
       icon: "👶",
     },
+
     {
       name: "Dairy",
       icon: "🥛",
     },
+
     {
       name: "Pharmacy",
       icon: "💊",
     },
+
   ];
+
+
+  const trendingProducts =
+    products.slice(
+      0,
+      8
+    );
+
+
+  const bestSellerProducts =
+    [...products]
+      .sort(
+        (a, b) =>
+          (b.sales || 0) -
+          (a.sales || 0)
+      )
+      .slice(
+        0,
+        8
+      );
+
+
+  const recommendedProducts =
+    products.slice(
+      0,
+      8
+    );
+
+
+  const recentlyViewedProducts =
+    products.slice(
+      0,
+      8
+    );
+
+
+  function renderProducts(
+    data: any[]
+  ) {
+
+    if (loading) {
+
+      return (
+
+        <View
+          style={
+            styles.loadingBox
+          }
+        >
+
+          <Text
+            style={
+              styles.loadingText
+            }
+          >
+            Loading products...
+          </Text>
+
+        </View>
+
+      );
+
+    }
+
+
+    if (!data.length) {
+
+      return (
+
+        <View
+          style={
+            styles.emptyBox
+          }
+        >
+
+          <Text
+            style={
+              styles.emptyText
+            }
+          >
+            No products available
+          </Text>
+
+        </View>
+
+      );
+
+    }
+
+
+    return (
+
+      <FlatList
+        data={data}
+        horizontal
+        keyExtractor={
+          (item) =>
+            item.id
+        }
+        renderItem={({
+          item,
+        }) => (
+
+          <ProductCard
+            product={item}
+          />
+
+        )}
+        showsHorizontalScrollIndicator={
+          false
+        }
+        contentContainerStyle={
+          styles.productList
+        }
+      />
+
+    );
+
+  }
+
+
+  function renderSection(
+    title: string,
+    data: any[]
+  ) {
+
+    return (
+
+      <View
+        style={
+          styles.section
+        }
+      >
+
+        <View
+          style={
+            styles.sectionHeader
+          }
+        >
+
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
+            {title}
+          </Text>
+
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() =>
+              navigation.navigate(
+                "Search"
+              )
+            }
+          >
+
+            <Text
+              style={
+                styles.seeAll
+              }
+            >
+              See all
+            </Text>
+
+          </TouchableOpacity>
+
+        </View>
+
+
+        {renderProducts(
+          data
+        )}
+
+      </View>
+
+    );
+
+  }
 
 
   return (
 
     <SafeAreaView
-      style={styles.container}
+      style={
+        styles.container
+      }
     >
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={
+          false
+        }
+        contentContainerStyle={
+          styles.scrollContent
+        }
       >
 
-        {/* HEADER */}
+      {/* =========================
+    YOMICO TOP HEADER
+========================== */}
 
-<View style={styles.header}>
+<View style={styles.topHeader}>
 
-  {/* YOMICO LOGO */}
+  <View style={styles.brandBlock}>
 
-  <Text style={styles.logo}>
-    YOMICO
-  </Text>
+    <Text style={styles.brandLogo}>
+      YOMICO
+    </Text>
 
-
-  {/* HEADER ICONS */}
-
-  <View style={styles.headerIcons}>
-
-    {/* Orders */}
-
-    <TouchableOpacity
-      onPress={() =>
-        navigation.navigate("Orders")
-      }
-      style={styles.headerIconButton}
-      activeOpacity={0.7}
-    >
-      <MaterialIcons
-        name="receipt-long"
-        size={22}
-        color="#16A34A"
-      />
-    </TouchableOpacity>
-
-
-    {/* Profile */}
-
-    <TouchableOpacity
-      onPress={() =>
-        navigation.navigate("Profile")
-      }
-      style={styles.headerIconButton}
-      activeOpacity={0.7}
-    >
-      <MaterialIcons
-        name="person-outline"
-        size={22}
-        color="#16A34A"
-      />
-    </TouchableOpacity>
-{/* Notifications */}
-
-<TouchableOpacity
-  onPress={() =>
-    navigation.navigate(
-      "Notifications"
-    )
-  }
-  style={styles.headerIconButton}
-  activeOpacity={0.7}
->
-  <MaterialIcons
-    name="notifications-none"
-    size={22}
-    color="#16A34A"
-  />
-</TouchableOpacity>
-
-    {/* Cart */}
-
-    <TouchableOpacity
-      onPress={() =>
-        navigation.navigate("Cart")
-      }
-      style={styles.headerIconButton}
-      activeOpacity={0.7}
-    >
-      <MaterialIcons
-        name="shopping-cart"
-        size={22}
-        color="#16A34A"
-      />
-    </TouchableOpacity>
+    <Text style={styles.brandTagline}>
+      India's Multi-Vendor Marketplace
+    </Text>
 
   </View>
 
 </View>
-<TouchableOpacity
- onPress={() =>
-  navigation.navigate("Search")
-}
-  activeOpacity={0.8}
->
 
-  <View
-    style={styles.searchBox}
-  >
+
+{/* =========================
+    SEARCH
+========================== */}
+
+<TouchableOpacity
+  activeOpacity={0.85}
+  onPress={() =>
+    navigation.navigate("Search")
+  }
+>
+  <View style={styles.searchBox}>
 
     <MaterialIcons
       name="search"
-      size={20}
-      color="#777"
+      size={24}
+      color="#263238"
     />
 
-    <TextInput
-      placeholder="Search products..."
-      placeholderTextColor="#888"
-      style={styles.searchInput}
-      editable={false}
-      pointerEvents="none"
-    />
+    <Text
+      style={styles.searchPlaceholder}
+    >
+      Search on YOMICO...
+    </Text>
 
     <MaterialIcons
       name="mic-none"
-      size={20}
-      color="#777"
+      size={22}
+      color="#263238"
     />
 
   </View>
+</TouchableOpacity>
+
+
+{/* =========================
+    DELIVERY LOCATION
+========================== */}
+
+<TouchableOpacity
+  activeOpacity={0.8}
+  style={styles.deliveryBar}
+>
+  <MaterialIcons
+    name="location-on"
+    size={21}
+    color="#16A34A"
+  />
+
+  <View style={styles.deliveryContent}>
+
+    <Text style={styles.deliveryLabel}>
+      Deliver to
+    </Text>
+
+    <Text
+      style={styles.deliveryAddress}
+      numberOfLines={1}
+    >
+      Select your delivery location
+    </Text>
+
+  </View>
+
+  <MaterialIcons
+    name="keyboard-arrow-right"
+    size={22}
+    color="#555"
+  />
 
 </TouchableOpacity>
 
-        {/* LOCATION */}
 
-        <View
-          style={styles.locationRow}
-        >
+{/* =========================
+    CATEGORIES
+========================== */}
 
-          <MaterialIcons
-            name="location-on"
-            size={18}
-            color="#16A34A"
-          />
+<View style={styles.categorySection}>
 
-          <Text
-            style={styles.location}
-            numberOfLines={1}
-          >
-            Deliver to your location
+  <View style={styles.sectionHeader}>
+
+    <Text style={styles.sectionTitle}>
+      Shop by Category
+    </Text>
+
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() =>
+        navigation.navigate("Search")
+      }
+    >
+      <Text style={styles.seeAll}>
+        View All →
+      </Text>
+    </TouchableOpacity>
+
+  </View>
+
+
+  <FlatList
+    data={categories}
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    keyExtractor={(item) => item.name}
+    contentContainerStyle={
+      styles.categoryList
+    }
+    renderItem={({ item }) => (
+
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={styles.category}
+        onPress={() =>
+          navigation.navigate(
+            "Search",
+            {
+              category: item.name,
+            }
+          )
+        }
+      >
+
+        <View style={styles.categoryIcon}>
+
+          <Text style={styles.categoryEmoji}>
+            {item.icon}
           </Text>
-
-          <MaterialIcons
-            name="keyboard-arrow-down"
-            size={18}
-            color="#555"
-          />
 
         </View>
 
+        <Text
+          style={styles.categoryText}
+          numberOfLines={1}
+        >
+          {item.name}
+        </Text>
 
-        {/* CATEGORIES */}
+      </TouchableOpacity>
 
-        <FlatList
-          data={categories}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) =>
-            item.name
+    )}
+  />
+
+</View>
+
+{/* =========================
+    YOMICO HERO CAROUSEL
+========================== */}
+
+<View style={styles.heroCarousel}>
+
+  <ScrollView
+    ref={heroRef}
+    horizontal
+    pagingEnabled
+    showsHorizontalScrollIndicator={false}
+    onMomentumScrollEnd={(event) => {
+
+      const index =
+        Math.round(
+          event.nativeEvent.contentOffset.x /
+          event.nativeEvent.layoutMeasurement.width
+        );
+
+      setHeroIndex(index);
+
+    }}
+  >
+
+    {heroSlides.map(
+      (image, index) => (
+
+        <TouchableOpacity
+          key={index}
+          activeOpacity={0.95}
+          style={styles.heroSlide}
+          onPress={() =>
+            navigation.navigate("Search")
           }
-          contentContainerStyle={
-            styles.categoryList
+        >
+
+          <Image
+            source={image}
+            style={styles.heroImage}
+            resizeMode="cover"
+          />
+
+        </TouchableOpacity>
+
+      )
+    )}
+
+  </ScrollView>
+
+
+  {/* HERO DOTS */}
+
+  <View
+    style={styles.heroDotsOverlay}
+  >
+
+    {heroSlides.map(
+      (_, index) => (
+
+        <View
+          key={index}
+          style={
+            index === heroIndex
+              ? styles.heroDotActive
+              : styles.heroDot
           }
-          renderItem={({
-            item,
-          }) => (
-
-            <TouchableOpacity
-  style={styles.category}
-  activeOpacity={0.8}
-  onPress={() =>
-    navigation.navigate(
-      "Search",
-      {
-        category:
-          item.name,
-      }
-    )
-  }
->
-
-              <View
-                style={styles.categoryIcon}
-              >
-
-                <Text
-                  style={styles.categoryEmoji}
-                >
-                  {item.icon}
-                </Text>
-
-              </View>
-
-              <Text
-                style={styles.categoryText}
-                numberOfLines={1}
-              >
-                {item.name}
-              </Text>
-
-            </TouchableOpacity>
-
-          )}
         />
 
+      )
+    )}
 
-        {/* BANNER */}
+  </View>
 
-        <View style={styles.banner}>
+</View>
 
-          <View
-            style={styles.bannerContent}
-          >
+        {/* =========================
+            DEALS
+        ========================== */}
 
-            <Text
-              style={styles.bannerSmall}
-            >
-              YOMICO DEALS
-            </Text>
-
-            <Text
-              style={styles.bannerTitle}
-            >
-              Big Sale
-            </Text>
-
-            <Text
-              style={styles.bannerSub}
-            >
-              Up to 70% OFF
-            </Text>
-
-            <TouchableOpacity
-              style={styles.shopButton}
-            >
-
-              <Text
-                style={styles.shopButtonText}
-              >
-                Shop Now
-              </Text>
-
-            </TouchableOpacity>
-
-          </View>
-
-          <MaterialIcons
-            name="local-offer"
-            size={65}
-            color="#FFFFFF"
-          />
-
-        </View>
-
-
-        {/* LATEST PRODUCTS */}
-
-        <View
-          style={styles.sectionHeader}
-        >
-
-          <Text
-            style={styles.sectionTitle}
-          >
-            Latest Products
-          </Text>
-
-          <Text
-            style={styles.seeAll}
-          >
-            See all
-          </Text>
-
-        </View>
-
-
-        {loading ? (
-
-          <View
-            style={styles.loadingBox}
-          >
-
-            <Text
-              style={styles.loadingText}
-            >
-              Loading products...
-            </Text>
-
-          </View>
-
-        ) : (
-
-          <FlatList
-            data={products}
-            keyExtractor={(item) =>
-              item.id
-            }
-            renderItem={({
-              item,
-            }) => (
-              <ProductCard
-                product={item}
-              />
-            )}
-            horizontal
-            showsHorizontalScrollIndicator={
-              false
-            }
-            contentContainerStyle={
-              styles.productList
-            }
-          />
-
+        {renderSection(
+          "Deals for You",
+          products
         )}
 
 
-        {/* SECOND SECTION */}
+        {/* =========================
+            TRENDING
+        ========================== */}
+
+        {renderSection(
+          "Trending Products",
+          trendingProducts
+        )}
+
+
+        {/* =========================
+            BEST SELLERS
+        ========================== */}
+
+        {renderSection(
+          "Best Sellers",
+          bestSellerProducts
+        )}
+
+
+        {/* =========================
+            RECOMMENDED
+        ========================== */}
+
+        {renderSection(
+          "Recommended for You",
+          recommendedProducts
+        )}
+
+
+        {/* =========================
+            RECENTLY VIEWED
+        ========================== */}
+
+        {renderSection(
+          "Recently Viewed",
+          recentlyViewedProducts
+        )}
+
+
+        {/* =========================
+            WHY SHOP YOMICO
+        ========================== */}
 
         <View
-          style={styles.sectionHeader}
+          style={
+            styles.infoSection
+          }
         >
 
           <Text
-            style={styles.sectionTitle}
+            style={
+              styles.infoTitle
+            }
           >
-            Deals for You
+            Why Shop YOMICO?
           </Text>
 
-          <Text
-            style={styles.seeAll}
-          >
-            See all
-          </Text>
-
-        </View>
-
-
-        <View
-          style={styles.dealRow}
-        >
 
           <View
-            style={styles.dealCard}
+            style={
+              styles.infoRow
+            }
           >
 
-            <Text
-              style={styles.dealTitle}
+            <View
+              style={
+                styles.infoItem
+              }
             >
-              Great Deals
-            </Text>
 
-            <Text
-              style={styles.dealDiscount}
+              <MaterialIcons
+                name="verified-user"
+                size={24}
+                color="#16A34A"
+              />
+
+              <Text
+                style={
+                  styles.infoText
+                }
+              >
+                Trusted Sellers
+              </Text>
+
+            </View>
+
+
+            <View
+              style={
+                styles.infoItem
+              }
             >
-              Up to 50% OFF
-            </Text>
+
+              <MaterialIcons
+                name="lock"
+                size={24}
+                color="#16A34A"
+              />
+
+              <Text
+                style={
+                  styles.infoText
+                }
+              >
+                Secure Payments
+              </Text>
+
+            </View>
 
           </View>
 
 
           <View
-            style={[
-              styles.dealCard,
-              styles.dealCardSecond,
-            ]}
+            style={
+              styles.infoRow
+            }
           >
 
-            <Text
-              style={styles.dealTitle}
+            <View
+              style={
+                styles.infoItem
+              }
             >
-              Daily Savings
-            </Text>
 
-            <Text
-              style={styles.dealDiscount}
+              <MaterialIcons
+                name="support-agent"
+                size={24}
+                color="#16A34A"
+              />
+
+              <Text
+                style={
+                  styles.infoText
+                }
+              >
+                Easy Support
+              </Text>
+
+            </View>
+
+
+            <View
+              style={
+                styles.infoItem
+              }
             >
-              From ₹99
-            </Text>
+
+              <MaterialIcons
+                name="local-shipping"
+                size={24}
+                color="#16A34A"
+              />
+
+              <Text
+                style={
+                  styles.infoText
+                }
+              >
+                Reliable Delivery
+              </Text>
+
+            </View>
 
           </View>
 
         </View>
 
 
+        {/* =========================
+            SUPPORT
+        ========================== */}
+
         <View
-          style={styles.bottomSpace}
+          style={
+            styles.supportSection
+          }
+        >
+
+          <Text
+            style={
+              styles.supportTitle
+            }
+          >
+            Need Help?
+          </Text>
+
+
+          <Text
+            style={
+              styles.supportText
+            }
+          >
+            Our support team is here to help you.
+          </Text>
+
+
+          <TouchableOpacity
+            style={
+              styles.supportButton
+            }
+            activeOpacity={0.8}
+            onPress={() =>
+              navigation.navigate(
+                "Support"
+              )
+            }
+          >
+
+            <Text
+              style={
+                styles.supportButtonText
+              }
+            >
+              Help & Support
+            </Text>
+
+          </TouchableOpacity>
+
+        </View>
+
+
+        {/* =========================
+            NEWSLETTER
+        ========================== */}
+
+        <View
+          style={
+            styles.newsletter
+          }
+        >
+
+          <Text
+            style={
+              styles.newsletterTitle
+            }
+          >
+            Stay Updated
+          </Text>
+
+
+          <Text
+            style={
+              styles.newsletterText
+            }
+          >
+            Get updates about new products and offers.
+          </Text>
+
+
+          <View
+            style={
+              styles.newsletterInputRow
+            }
+          >
+
+            <TextInput
+              placeholder="Enter your email"
+              placeholderTextColor="#888888"
+              style={
+                styles.newsletterInput
+              }
+            />
+
+
+            <TouchableOpacity
+              style={
+                styles.subscribeButton
+              }
+              activeOpacity={0.8}
+            >
+
+              <Text
+                style={
+                  styles.subscribeText
+                }
+              >
+                Subscribe
+              </Text>
+
+            </TouchableOpacity>
+
+          </View>
+
+        </View>
+
+
+        {/* =========================
+            FOOTER
+        ========================== */}
+
+        <View
+          style={
+            styles.footer
+          }
+        >
+
+          <Text
+            style={
+              styles.footerLogo
+            }
+          >
+            YOMICO
+          </Text>
+
+
+          <Text
+            style={
+              styles.footerDescription
+            }
+          >
+            Your everyday marketplace.
+          </Text>
+
+
+          <View
+            style={
+              styles.footerLinks
+            }
+          >
+
+            <TouchableOpacity>
+              <Text
+                style={
+                  styles.footerLink
+                }
+              >
+                About
+              </Text>
+            </TouchableOpacity>
+
+
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate(
+                  "Support"
+                )
+              }
+            >
+              <Text
+                style={
+                  styles.footerLink
+                }
+              >
+                Support
+              </Text>
+            </TouchableOpacity>
+
+
+            <TouchableOpacity>
+              <Text
+                style={
+                  styles.footerLink
+                }
+              >
+                Privacy
+              </Text>
+            </TouchableOpacity>
+
+
+            <TouchableOpacity>
+              <Text
+                style={
+                  styles.footerLink
+                }
+              >
+                Terms
+              </Text>
+            </TouchableOpacity>
+
+          </View>
+
+
+          <Text
+            style={
+              styles.copyright
+            }
+          >
+            © 2026 YOMICO. All rights reserved.
+          </Text>
+
+        </View>
+
+
+        {/* =========================
+            BOTTOM NAVIGATION SPACE
+        ========================== */}
+
+        <View
+          style={
+            styles.bottomNavigationSpace
+          }
         />
 
       </ScrollView>
@@ -518,6 +998,7 @@ export default function HomeScreen() {
     </SafeAreaView>
 
   );
+
 }
 
 
@@ -526,284 +1007,476 @@ const styles =
 
     container: {
       flex: 1,
-      backgroundColor: "#F5F5F5",
+      backgroundColor:
+        "#F5F5F5",
+    },
+
+
+    scrollContent: {
+      paddingBottom: 20,
     },
 
 
     /* HEADER */
+section: {
+  marginTop: 16,
+},
 
-    header: {
-      flexDirection: "row",
-      justifyContent:
-        "space-between",
-      alignItems: "center",
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      backgroundColor: "#FFFFFF",
-    },
+sectionHeader: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginHorizontal: 13,
+  marginBottom: 9,
+},
 
+sectionTitle: {
+  fontSize: 18,
+  fontWeight: "800",
+  color: "#222222",
+},
 
-    logo: {
-      fontSize: 24,
-      fontWeight: "800",
-      color: "#16A34A",
-      letterSpacing: 0.5,
-    },
+seeAll: {
+  fontSize: 12,
+  fontWeight: "700",
+  color: "#078A3D",
+},
+  topHeader: {
+  paddingHorizontal: 16,
+  paddingTop: 14,
+  paddingBottom: 10,
+  backgroundColor: "#E9FFF1",
+  borderBottomWidth: 1,
+  borderBottomColor: "#D5F2DF",
+},
 
+brandBlock: {
+  alignItems: "flex-start",
+},
 
-    headerIcons: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
+brandLogo: {
+  fontSize: 27,
+  fontWeight: "900",
+  color: "#078A3D",
+  letterSpacing: 1,
+},
 
+brandTagline: {
+  fontSize: 10,
+  color: "#496454",
+  marginTop: 2,
+},
 
-    headerIconButton: {
-  width: 34,
-  height: 34,
+searchBox: {
+  height: 52,
+  marginHorizontal: 13,
+  marginTop: 10,
+  backgroundColor: "#FFFFFF",
+  borderWidth: 1,
+  borderColor: "#D9E2DD",
+  borderRadius: 27,
+  flexDirection: "row",
+  alignItems: "center",
+  paddingHorizontal: 16,
+
+  shadowColor: "#000",
+  shadowOffset: {
+    width: 0,
+    height: 2,
+  },
+  shadowOpacity: 0.08,
+  shadowRadius: 5,
+  elevation: 3,
+},
+
+searchPlaceholder: {
+  flex: 1,
+  marginLeft: 10,
+  marginRight: 8,
+  fontSize: 15,
+  color: "#7A8580",
+},
+
+deliveryBar: {
+  marginHorizontal: 13,
+  marginTop: 9,
+  paddingHorizontal: 13,
+  paddingVertical: 10,
+  backgroundColor: "#FFFFFF",
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "#E2E8E4",
+  flexDirection: "row",
+  alignItems: "center",
+},
+
+deliveryContent: {
+  flex: 1,
+  marginLeft: 8,
+},
+
+deliveryLabel: {
+  fontSize: 10,
+  color: "#777777",
+},
+
+deliveryAddress: {
+  marginTop: 2,
+  fontSize: 12,
+  fontWeight: "700",
+  color: "#252525",
+},
+
+categorySection: {
+  marginTop: 16,
+},
+
+categoryList: {
+  paddingHorizontal: 13,
+},
+
+category: {
+  width: 72,
+  alignItems: "center",
+  marginRight: 10,
+},
+
+categoryIcon: {
+  width: 58,
+  height: 58,
+  borderRadius: 29,
+  backgroundColor: "#FFFFFF",
+  borderWidth: 1,
+  borderColor: "#E2E8E4",
   alignItems: "center",
   justifyContent: "center",
-  marginLeft: 3,
+
+  shadowColor: "#000",
+  shadowOffset: {
+    width: 0,
+    height: 2,
+  },
+  shadowOpacity: 0.06,
+  shadowRadius: 4,
+  elevation: 2,
+},
+
+categoryEmoji: {
+  fontSize: 27,
+},
+
+categoryText: {
+  marginTop: 6,
+  fontSize: 10,
+  fontWeight: "600",
+  color: "#333333",
+  textAlign: "center",
 },
 
 
-    /* SEARCH */
+    /* HERO */
 
-    searchBox: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor:
-        "#FFFFFF",
-      marginHorizontal: 12,
-      marginTop: 8,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: "#DDDDDD",
-      paddingHorizontal: 10,
-      height: 44,
-    },
+heroCarousel: {
+  marginHorizontal: 13,
+  marginTop: 16,
+  borderRadius: 16,
+  overflow: "hidden",
+  backgroundColor: "#FFFFFF",
+  position: "relative",
+},
 
+heroSlide: {
+  width:
+    Dimensions.get("window").width - 26,
+  height: 190,
+},
 
-    searchInput: {
-      flex: 1,
-      height: 42,
-      marginHorizontal: 7,
-      fontSize: 15,
-      color: "#222",
-    },
+heroImage: {
+  width: "100%",
+  height: "100%",
+},
 
+heroDotsOverlay: {
+  position: "absolute",
+  bottom: 10,
+  left: 0,
+  right: 0,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+},
 
-    /* LOCATION */
+heroDotActive: {
+  width: 18,
+  height: 5,
+  borderRadius: 3,
+  backgroundColor: "#078A3D",
+  marginHorizontal: 3,
+},
 
-    locationRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginHorizontal: 14,
-      marginTop: 8,
-      marginBottom: 5,
-    },
-
-
-    location: {
-      flex: 1,
-      marginHorizontal: 4,
-      color: "#444",
-      fontSize: 13,
-      fontWeight: "600",
-    },
-
-
-    /* CATEGORIES */
-
-    categoryList: {
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-    },
-
-
-    category: {
-      width: 65,
-      alignItems: "center",
-      marginRight: 7,
-    },
-
-
-    categoryIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 10,
-      backgroundColor:
-        "#FFFFFF",
-      alignItems: "center",
-      justifyContent: "center",
-      elevation: 1,
-      borderWidth: 1,
-      borderColor: "#EEEEEE",
-    },
-
-
-    categoryEmoji: {
-      fontSize: 23,
-    },
-
-
-    categoryText: {
-      fontSize: 11,
-      color: "#333",
-      marginTop: 4,
-      textAlign: "center",
-    },
-
-
-    /* BANNER */
-
-    banner: {
-      marginHorizontal: 12,
-      marginTop: 5,
-      minHeight: 120,
-      borderRadius: 12,
-      backgroundColor: "#16A34A",
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent:
-        "space-between",
-    },
-
-
-    bannerContent: {
-      flex: 1,
-    },
-
-
-    bannerSmall: {
-      color: "#DDF7E6",
-      fontSize: 11,
-      fontWeight: "700",
-    },
-
-
-    bannerTitle: {
-      color: "#FFFFFF",
-      fontSize: 24,
-      fontWeight: "800",
-      marginTop: 2,
-    },
-
-
-    bannerSub: {
-      color: "#FFFFFF",
-      fontSize: 14,
-      marginTop: 2,
-    },
-
-
-    shopButton: {
-      alignSelf: "flex-start",
-      backgroundColor: "#FFFFFF",
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 7,
-      marginTop: 8,
-    },
-
-
-    shopButtonText: {
-      color: "#16A34A",
-      fontSize: 12,
-      fontWeight: "700",
-    },
-
-
-    /* SECTION */
-
-    sectionHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent:
-        "space-between",
-      marginHorizontal: 13,
-      marginTop: 16,
-      marginBottom: 5,
-    },
-
-
-    sectionTitle: {
-      fontSize: 19,
-      fontWeight: "800",
-      color: "#222",
-    },
-
-
-    seeAll: {
-      fontSize: 12,
-      color: "#16A34A",
-      fontWeight: "700",
-    },
-
+heroDot: {
+  width: 6,
+  height: 6,
+  borderRadius: 3,
+  backgroundColor: "#FFFFFF",
+  marginHorizontal: 3,
+},
 
     /* PRODUCTS */
 
     productList: {
       paddingHorizontal: 12,
-      paddingVertical: 3,
     },
 
 
     loadingBox: {
-      height: 120,
-      alignItems: "center",
-      justifyContent: "center",
+      height: 150,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
     },
 
 
     loadingText: {
-      fontSize: 13,
-      color: "#777",
+      fontSize: 12,
+      color: "#777777",
     },
 
 
-    /* DEALS */
-
-    dealRow: {
-      flexDirection: "row",
-      paddingHorizontal: 12,
-      gap: 8,
+    emptyBox: {
+      height: 100,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
     },
 
 
-    dealCard: {
-      flex: 1,
-      minHeight: 95,
-      borderRadius: 10,
-      backgroundColor: "#FFE5D1",
-      padding: 12,
-      justifyContent: "center",
+    emptyText: {
+      fontSize: 12,
+      color: "#777777",
     },
 
 
-    dealCardSecond: {
-      backgroundColor: "#E2F7E8",
+    /* INFO */
+
+    infoSection: {
+      marginHorizontal: 12,
+      marginTop: 22,
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 12,
+      padding: 15,
     },
 
 
-    dealTitle: {
-      fontSize: 15,
+    infoTitle: {
+      fontSize: 17,
       fontWeight: "800",
-      color: "#222",
+      color: "#222222",
+      marginBottom: 13,
     },
 
 
-    dealDiscount: {
-      fontSize: 13,
-      color: "#16A34A",
+    infoRow: {
+      flexDirection:
+        "row",
+      marginBottom: 13,
+    },
+
+
+    infoItem: {
+      flex: 1,
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+    },
+
+
+    infoText: {
+      fontSize: 10,
+      color: "#444444",
+      marginLeft: 7,
+      fontWeight: "600",
+    },
+
+
+    /* SUPPORT */
+
+    supportSection: {
+      marginHorizontal: 12,
+      marginTop: 14,
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 12,
+      padding: 15,
+    },
+
+
+    supportTitle: {
+      fontSize: 17,
+      fontWeight: "800",
+      color: "#222222",
+    },
+
+
+    supportText: {
+      fontSize: 11,
+      color: "#777777",
+      marginTop: 4,
+    },
+
+
+    supportButton: {
+      height: 40,
+      marginTop: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor:
+        "#16A34A",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+    },
+
+
+    supportButtonText: {
+      fontSize: 12,
       fontWeight: "700",
-      marginTop: 5,
+      color: "#16A34A",
     },
 
 
-    bottomSpace: {
-      height: 30,
+    /* NEWSLETTER */
+
+    newsletter: {
+      marginHorizontal: 12,
+      marginTop: 14,
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 12,
+      padding: 15,
+    },
+
+
+    newsletterTitle: {
+      fontSize: 17,
+      fontWeight: "800",
+      color: "#222222",
+    },
+
+
+    newsletterText: {
+      fontSize: 11,
+      color: "#777777",
+      marginTop: 4,
+      marginBottom: 11,
+    },
+
+
+    newsletterInputRow: {
+      flexDirection:
+        "row",
+    },
+
+
+    newsletterInput: {
+      flex: 1,
+      height: 40,
+      borderWidth: 1,
+      borderColor:
+        "#DDDDDD",
+      borderRadius: 7,
+      paddingHorizontal: 10,
+      fontSize: 11,
+      color: "#222222",
+    },
+
+
+    subscribeButton: {
+      height: 40,
+      marginLeft: 7,
+      paddingHorizontal: 12,
+      borderRadius: 7,
+      backgroundColor:
+        "#16A34A",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+    },
+
+
+    subscribeText: {
+      color: "#FFFFFF",
+      fontSize: 11,
+      fontWeight: "700",
+    },
+
+
+    /* FOOTER */
+
+    footer: {
+      marginTop: 18,
+      backgroundColor:
+        "#222222",
+      paddingHorizontal: 16,
+      paddingTop: 22,
+      paddingBottom: 20,
+      alignItems:
+        "center",
+    },
+
+
+    footerLogo: {
+      fontSize: 22,
+      fontWeight: "800",
+      color: "#FFFFFF",
+    },
+
+
+    footerDescription: {
+      fontSize: 11,
+      color: "#BBBBBB",
+      marginTop: 4,
+    },
+
+
+    footerLinks: {
+      flexDirection:
+        "row",
+      flexWrap:
+        "wrap",
+      justifyContent:
+        "center",
+      marginTop: 16,
+    },
+
+
+    footerLink: {
+      color: "#FFFFFF",
+      fontSize: 11,
+      marginHorizontal: 10,
+      marginVertical: 5,
+    },
+
+
+    copyright: {
+      fontSize: 9,
+      color: "#999999",
+      marginTop: 14,
+      textAlign:
+        "center",
+    },
+
+
+    /* BOTTOM NAVIGATION */
+
+    bottomNavigationSpace: {
+      height: 90,
     },
 
   });
