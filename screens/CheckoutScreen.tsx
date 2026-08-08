@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
 
 import {
   SafeAreaView,
@@ -15,6 +18,9 @@ import {
   collection,
   addDoc,
   serverTimestamp,
+  getDocs,
+  query,
+  where,
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase/firebase";
@@ -47,6 +53,7 @@ export default function CheckoutScreen() {
   const navigation =
     useNavigation<NavigationProp>();
 
+
   const [name, setName] =
     useState("");
 
@@ -62,11 +69,207 @@ export default function CheckoutScreen() {
   const [pincode, setPincode] =
     useState("");
 
+
   const [loading, setLoading] =
     useState(false);
+const [gstAmount, setGstAmount] =
+  useState(0);
+
+const platformFee = 5;
+const [cartItemsTotalMRP, setCartItemsTotalMRP] =
+  useState(0);
+
+  const [addressLoading, setAddressLoading] =
+    useState(true);
 
 
   const shipping = 50;
+    const [subtotal, setSubtotal] =
+    useState(0);
+    
+
+  const [shippingAmount, setShippingAmount] =
+    useState(0);
+    
+
+
+  useEffect(() => {
+
+    loadSavedAddress();
+     loadCartSummary();
+
+  }, []);
+async function loadCartSummary() {
+
+  try {
+
+    const items =
+      await getCartItems();
+      const calculatedMRP =
+  items.reduce(
+    (
+      sum: number,
+      item: any
+    ) =>
+      sum +
+      Number(
+        item.mrp || item.price
+      ) *
+        Number(item.quantity),
+    0
+  );
+
+setCartItemsTotalMRP(
+  calculatedMRP
+);
+
+    const calculatedSubtotal =
+      items.reduce(
+        (
+          sum: number,
+          item: any
+        ) =>
+          sum +
+          Number(item.price) *
+            Number(item.quantity),
+        0
+      );
+
+    const calculatedShipping =
+      calculatedSubtotal > 500
+        ? 0
+        : shipping;
+
+    const calculatedGst =
+      items.reduce(
+        (
+          sum: number,
+          item: any
+        ) => { 
+
+          const itemTotal =
+            Number(item.price) *
+            Number(item.quantity);
+
+          const gstPercent =
+            Number(
+              item.gstPercent || 0
+            );
+
+          return (
+            sum +
+            (itemTotal * gstPercent) /
+              100
+          );
+
+        },
+        0
+      );
+
+    setSubtotal(
+      calculatedSubtotal
+    );
+
+    setShippingAmount(
+      calculatedShipping
+    );
+
+    setGstAmount(
+      calculatedGst
+    );
+
+  } catch (error) {
+
+    console.log(
+      "Cart summary error:",
+      error
+    );
+
+  }
+
+}
+
+  async function loadSavedAddress() {
+
+    const user =
+      auth.currentUser;
+
+
+    if (!user) {
+
+      setAddressLoading(false);
+
+      return;
+
+    }
+
+
+    try {
+
+      const addressQuery =
+        query(
+          collection(
+            db,
+            "addresses"
+          ),
+          where(
+            "userId",
+            "==",
+            user.uid
+          )
+        );
+
+
+      const snapshot =
+        await getDocs(
+          addressQuery
+        );
+
+
+      if (
+        !snapshot.empty
+      ) {
+
+        const savedAddress =
+          snapshot.docs[0].data();
+
+
+        setName(
+          savedAddress.name || ""
+        );
+
+        setMobile(
+          savedAddress.mobile || ""
+        );
+
+        setAddress(
+          savedAddress.address || ""
+        );
+
+        setCity(
+          savedAddress.city || ""
+        );
+
+        setPincode(
+          savedAddress.pincode || ""
+        );
+
+      }
+
+    } catch (error) {
+
+      console.log(
+        "Saved address loading error:",
+        error
+      );
+
+    } finally {
+
+      setAddressLoading(false);
+
+    }
+
+  }
 
 
   async function placeOrder() {
@@ -85,10 +288,13 @@ export default function CheckoutScreen() {
       );
 
       return;
+
     }
 
 
-    if (mobile.trim().length < 10) {
+    if (
+      mobile.trim().length < 10
+    ) {
 
       Alert.alert(
         "Invalid Mobile",
@@ -96,10 +302,13 @@ export default function CheckoutScreen() {
       );
 
       return;
+
     }
 
 
-    if (pincode.trim().length !== 6) {
+    if (
+      pincode.trim().length !== 6
+    ) {
 
       Alert.alert(
         "Invalid PIN Code",
@@ -107,6 +316,7 @@ export default function CheckoutScreen() {
       );
 
       return;
+
     }
 
 
@@ -121,9 +331,12 @@ export default function CheckoutScreen() {
         "Please login before placing an order."
       );
 
-      navigation.replace("Login");
+      navigation.replace(
+        "Login"
+      );
 
       return;
+
     }
 
 
@@ -146,24 +359,53 @@ export default function CheckoutScreen() {
           "Your cart is empty."
         );
 
-        navigation.navigate("Cart");
+        navigation.navigate(
+          "Cart"
+        );
 
         return;
+
       }
 
 
-      const subtotal =
-        cartItems.reduce(
-          (
-            sum: number,
-            item: any
-          ) =>
-            sum +
-            Number(item.price) *
-              Number(item.quantity),
-          0
-        );
+     const subtotal =
+  cartItems.reduce(
+    (
+      sum: number,
+      item: any
+    ) =>
+      sum +
+      Number(item.price) *
+        Number(item.quantity),
+    0
+  );
 
+
+const calculatedGst =
+  cartItems.reduce(
+    (
+      sum: number,
+      item: any
+    ) => {
+
+      const itemTotal =
+        Number(item.price) *
+        Number(item.quantity);
+
+      const gstPercent =
+        Number(item.gstPercent || 0);
+
+      return (
+        sum +
+        (itemTotal * gstPercent) / 100
+      );
+
+    },
+    0
+  );
+setGstAmount(
+  calculatedGst
+);
 
       const finalShipping =
         subtotal > 500
@@ -171,14 +413,18 @@ export default function CheckoutScreen() {
           : shipping;
 
 
-      const total =
-        subtotal +
-        finalShipping;
+     const platformFee = 5;
 
+const total =
+  subtotal +
+  finalShipping +
+  platformFee +
+  calculatedGst;
 
       const orderData = {
 
-        userId: user.uid,
+        userId:
+          user.uid,
 
         customerName:
           name.trim(),
@@ -198,7 +444,8 @@ export default function CheckoutScreen() {
         pincode:
           pincode.trim(),
 
-        items: cartItems,
+        items:
+          cartItems,
 
         subtotal:
           subtotal,
@@ -218,10 +465,16 @@ export default function CheckoutScreen() {
         status:
           "Pending",
 
-        createdAt:
-          serverTimestamp(),
+       createdAt:
+  serverTimestamp(),
 
-      };
+gstAmount:
+  calculatedGst,
+
+platformFee:
+  platformFee,
+};
+     
 
 
       await addDoc(
@@ -263,6 +516,7 @@ export default function CheckoutScreen() {
         ]
       );
 
+
     } catch (error) {
 
       console.log(
@@ -296,55 +550,96 @@ export default function CheckoutScreen() {
         }
       >
 
+        {/* HEADER */}
+
         <View
           style={styles.header}
         >
 
           <Text
-  allowFontScaling={false}
-  style={styles.title}
->
-  Checkout
-</Text>
+            allowFontScaling={false}
+            style={styles.title}
+          >
+            Checkout
+          </Text>
 
-<Text
-  allowFontScaling={false}
-  style={styles.subtitle}
->
-  Delivery Details
-</Text>
+
+          <Text
+            allowFontScaling={false}
+            style={styles.subtitle}
+          >
+            Delivery Details
+          </Text>
 
         </View>
 
+
+        {/* SAVED ADDRESS MESSAGE */}
+
+        {!addressLoading &&
+          name &&
+          address && (
+
+          <View
+            style={styles.savedAddressBanner}
+          >
+
+            <Text
+              style={
+                styles.savedAddressTitle
+              }
+            >
+              ✓ Saved address loaded
+            </Text>
+
+            <Text
+              style={
+                styles.savedAddressText
+              }
+            >
+              Your saved delivery address
+              has been filled automatically.
+            </Text>
+
+          </View>
+
+        )}
+
+
+        {/* DELIVERY FORM */}
 
         <View
           style={styles.form}
         >
 
-         <Text
-  allowFontScaling={false}
-  style={styles.label}
->
-  Full Name
-</Text>
+          <Text
+            allowFontScaling={false}
+            style={styles.label}
+          >
+            Full Name
+          </Text>
+
 
           <TextInput
-  allowFontScaling={false}
-  placeholder="Enter your name"
-  placeholderTextColor="#999"
-  style={styles.input}
-  value={name}
-  onChangeText={setName}
-/>
+            allowFontScaling={false}
+            placeholder="Enter your name"
+            placeholderTextColor="#999"
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+          />
 
 
           <Text
+            allowFontScaling={false}
             style={styles.label}
           >
             Mobile Number
           </Text>
 
+
           <TextInput
+            allowFontScaling={false}
             placeholder="Enter mobile number"
             placeholderTextColor="#999"
             keyboardType="phone-pad"
@@ -356,12 +651,15 @@ export default function CheckoutScreen() {
 
 
           <Text
+            allowFontScaling={false}
             style={styles.label}
           >
             Address
           </Text>
 
+
           <TextInput
+            allowFontScaling={false}
             placeholder="House / Street / Area"
             placeholderTextColor="#999"
             style={[
@@ -375,12 +673,15 @@ export default function CheckoutScreen() {
 
 
           <Text
+            allowFontScaling={false}
             style={styles.label}
           >
             City
           </Text>
 
+
           <TextInput
+            allowFontScaling={false}
             placeholder="Enter city"
             placeholderTextColor="#999"
             style={styles.input}
@@ -390,12 +691,15 @@ export default function CheckoutScreen() {
 
 
           <Text
+            allowFontScaling={false}
             style={styles.label}
           >
             PIN Code
           </Text>
 
+
           <TextInput
+            allowFontScaling={false}
             placeholder="6-digit PIN code"
             placeholderTextColor="#999"
             keyboardType="number-pad"
@@ -408,6 +712,8 @@ export default function CheckoutScreen() {
         </View>
 
 
+        {/* PAYMENT */}
+
         <View
           style={styles.paymentCard}
         >
@@ -418,6 +724,7 @@ export default function CheckoutScreen() {
             Payment Method
           </Text>
 
+
           <View
             style={styles.codRow}
           >
@@ -425,6 +732,7 @@ export default function CheckoutScreen() {
             <View
               style={styles.radio}
             />
+
 
             <View
               style={styles.codTextContainer}
@@ -435,6 +743,7 @@ export default function CheckoutScreen() {
               >
                 Cash on Delivery
               </Text>
+
 
               <Text
                 style={styles.codSubtitle}
@@ -449,69 +758,248 @@ export default function CheckoutScreen() {
         </View>
 
 
-        <View
-          style={styles.summary}
+       {/* BILL DETAILS */}
+
+<View
+  style={styles.summary}
+>
+
+  <Text
+    style={styles.sectionTitle}
+  >
+    Bill details
+  </Text>
+
+
+  {/* ITEMS TOTAL */}
+
+  <View
+    style={styles.summaryRow}
+  >
+
+    <Text
+      style={styles.summaryLabel}
+    >
+      Items total
+    </Text>
+
+
+    <View
+      style={styles.billRight}
+    >
+
+      <Text
+  style={styles.mrpBill}
+>
+  Saved ₹
+  {Math.max(
+    0,
+    cartItemsTotalMRP - subtotal
+  ).toFixed(0)}
+</Text>
+
+
+      <Text
+        style={styles.mrpBill}
+      >
+        ₹{cartItemsTotalMRP.toFixed(0)}
+      </Text>
+
+
+      <Text
+        style={styles.billPrice}
+      >
+        ₹{subtotal.toFixed(0)}
+      </Text>
+
+    </View>
+
+  </View>
+
+
+  {/* DELIVERY */}
+
+  <View
+    style={styles.summaryRow}
+  >
+
+    <Text
+      style={styles.summaryLabel}
+    >
+      Delivery charge
+    </Text>
+
+
+    <View
+      style={styles.billRight}
+    >
+
+      {shippingAmount === 0 && (
+
+        <Text
+          style={styles.mrpBill}
         >
+          ₹{shipping}
+        </Text>
 
-          <Text
-            style={styles.sectionTitle}
-          >
-            Order Summary
-          </Text>
+      )}
 
 
-          <View
-            style={styles.summaryRow}
-          >
+      <Text
+        style={
+          shippingAmount === 0
+            ? styles.freeText
+            : styles.summaryValue
+        }
+      >
+        {shippingAmount === 0
+          ? "FREE"
+          : `₹${shippingAmount}`}
+      </Text>
 
-            <Text
-              style={styles.summaryLabel}
-            >
-              Items
-            </Text>
+    </View>
 
-            <Text
-              style={styles.summaryValue}
-            >
-              Calculated at checkout
-            </Text>
-
-          </View>
+  </View>
 
 
-          <View
-            style={styles.summaryRow}
-          >
+  {/* PLATFORM FEE */}
 
-            <Text
-              style={styles.summaryLabel}
-            >
-              Shipping
-            </Text>
+  <View
+    style={styles.summaryRow}
+  >
 
-            <Text
-              style={styles.summaryValue}
-            >
-              ₹50 / Free above ₹500
-            </Text>
-
-          </View>
+    <Text
+      style={styles.summaryLabel}
+    >
+      Platform fee
+    </Text>
 
 
-          <View
-            style={styles.securityRow}
-          >
+    <Text
+      style={styles.summaryValue}
+    >
+      ₹{platformFee.toFixed(0)}
+    </Text>
 
-            <Text
-              style={styles.securityText}
-            >
-              🔒 Secure order
-            </Text>
+  </View>
 
-          </View>
 
-        </View>
+  {/* GST */}
 
+  <View
+    style={styles.summaryRow}
+  >
+
+    <Text
+      style={styles.summaryLabel}
+    >
+      GST
+    </Text>
+
+
+    <Text
+      style={styles.summaryValue}
+    >
+      ₹{gstAmount.toFixed(0)}
+    </Text>
+
+  </View>
+
+
+  {/* DIVIDER */}
+
+  <View
+    style={styles.totalDivider}
+  />
+
+
+  {/* GRAND TOTAL */}
+
+  <View
+    style={styles.summaryRow}
+  >
+
+    <Text
+      style={styles.grandTotalLabel}
+    >
+      Grand total
+    </Text>
+
+
+    <Text
+      style={styles.grandTotalValue}
+    >
+      ₹
+      {(
+        subtotal +
+        shippingAmount +
+        platformFee +
+        gstAmount
+      ).toFixed(0)}
+    </Text>
+
+  </View>
+
+
+  {/* SAVINGS */}
+
+  <View
+    style={styles.savingsBox}
+  >
+
+    <Text
+      style={styles.savingsTitle}
+    >
+      Your total savings
+    </Text>
+
+
+    <Text
+      style={styles.savingsAmount}
+    >
+      ₹
+      {(
+        Math.max(
+          0,
+          cartItemsTotalMRP - subtotal
+        ) +
+        (shippingAmount === 0
+          ? shipping
+          : 0)
+      ).toFixed(0)}
+    </Text>
+
+
+    <Text
+      style={styles.savingsText}
+    >
+      Includes product savings
+      {shippingAmount === 0
+        ? " and free delivery"
+        : ""}
+    </Text>
+
+  </View>
+
+
+  {/* SECURITY */}
+
+  <View
+    style={styles.securityRow}
+  >
+
+    <Text
+      style={styles.securityText}
+    >
+      🔒 Secure order
+    </Text>
+
+  </View>
+
+</View>
+
+
+        {/* PLACE ORDER */}
 
         <TouchableOpacity
           style={[
@@ -546,172 +1034,298 @@ export default function CheckoutScreen() {
 }
 
 
-const styles = StyleSheet.create({
+const styles =
+  StyleSheet.create({
 
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-  },
+    container: {
+      flex: 1,
+      backgroundColor: "#F5F5F5",
+    },
 
-  header: {
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEEEEE",
-  },
 
-  title: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#222222",
-  },
+    header: {
+      backgroundColor: "#FFFFFF",
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: "#EEEEEE",
+    },
 
-  subtitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#777777",
-    marginTop: 2,
-  },
 
-  form: {
-    backgroundColor: "#FFFFFF",
-    marginTop: 7,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
+    title: {
+      fontSize: 20,
+      fontWeight: "800",
+      color: "#222222",
+    },
 
-  label: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#333333",
-    marginBottom: 5,
-  },
 
-  input: {
-    height: 44,
-    borderWidth: 1,
-    borderColor: "#DDDDDD",
-    borderRadius: 8,
-    paddingHorizontal: 11,
-    fontSize: 13,
-    color: "#222222",
-    marginBottom: 11,
-    backgroundColor: "#FFFFFF",
-  },
+    subtitle: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: "#777777",
+      marginTop: 2,
+    },
 
-  addressInput: {
-    height: 65,
-    paddingTop: 10,
-    textAlignVertical: "top",
-  },
 
-  paymentCard: {
-    backgroundColor: "#FFFFFF",
-    marginTop: 7,
-    padding: 14,
-  },
+    savedAddressBanner: {
+      backgroundColor: "#F3FFF6",
+      marginTop: 7,
+      marginHorizontal: 0,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderBottomWidth: 1,
+      borderBottomColor: "#D7F0DD",
+    },
 
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#222222",
-    marginBottom: 9,
-  },
 
-  codRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#16A34A",
-    borderRadius: 9,
-    padding: 10,
-    backgroundColor: "#F3FFF6",
-  },
+    savedAddressTitle: {
+      fontSize: 12,
+      fontWeight: "800",
+      color: "#16A34A",
+    },
 
-  radio: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#16A34A",
-    borderWidth: 4,
-    borderColor: "#FFFFFF",
-  },
 
-  codTextContainer: {
-    marginLeft: 9,
-  },
+    savedAddressText: {
+      fontSize: 10,
+      color: "#666666",
+      marginTop: 2,
+    },
 
-  codTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#222222",
-  },
 
-  codSubtitle: {
-    fontSize: 11,
-    color: "#777777",
-    marginTop: 2,
-  },
+    form: {
+      backgroundColor: "#FFFFFF",
+      marginTop: 7,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
 
-  summary: {
-    backgroundColor: "#FFFFFF",
-    marginTop: 7,
-    padding: 14,
-  },
 
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 7,
-  },
+    label: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#333333",
+      marginBottom: 5,
+    },
 
-  summaryLabel: {
-    fontSize: 13,
-    color: "#555555",
-  },
 
-  summaryValue: {
-    fontSize: 12,
-    color: "#555555",
-    textAlign: "right",
-  },
+    input: {
+      height: 44,
+      borderWidth: 1,
+      borderColor: "#DDDDDD",
+      borderRadius: 8,
+      paddingHorizontal: 11,
+      fontSize: 13,
+      color: "#222222",
+      marginBottom: 11,
+      backgroundColor: "#FFFFFF",
+    },
 
-  securityRow: {
-    marginTop: 5,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#EEEEEE",
-  },
 
-  securityText: {
-    fontSize: 11,
-    color: "#16A34A",
-    fontWeight: "600",
-  },
+    addressInput: {
+      height: 65,
+      paddingTop: 10,
+      textAlignVertical: "top",
+    },
 
-  placeButton: {
-    marginHorizontal: 14,
-    marginTop: 11,
-    backgroundColor: "#16A34A",
-    height: 46,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
-  disabledButton: {
-    opacity: 0.6,
-  },
+    paymentCard: {
+      backgroundColor: "#FFFFFF",
+      marginTop: 7,
+      padding: 14,
+    },
 
-  placeButtonText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "800",
-  },
 
-  bottomSpace: {
-    height: 20,
-  },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "800",
+      color: "#222222",
+      marginBottom: 9,
+    },
 
-});
+
+    codRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: "#16A34A",
+      borderRadius: 9,
+      padding: 10,
+      backgroundColor: "#F3FFF6",
+    },
+
+
+    radio: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: "#16A34A",
+      borderWidth: 4,
+      borderColor: "#FFFFFF",
+    },
+
+
+    codTextContainer: {
+      marginLeft: 9,
+    },
+
+
+    codTitle: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#222222",
+    },
+
+
+    codSubtitle: {
+      fontSize: 11,
+      color: "#777777",
+      marginTop: 2,
+    },
+
+
+    summary: {
+      backgroundColor: "#FFFFFF",
+      marginTop: 7,
+      padding: 14,
+    },
+
+
+    summaryRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 7,
+    },
+
+
+    summaryLabel: {
+      fontSize: 13,
+      color: "#555555",
+    },
+
+
+    summaryValue: {
+      fontSize: 12,
+      color: "#555555",
+      textAlign: "right",
+    },
+
+
+    securityRow: {
+      marginTop: 5,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: "#EEEEEE",
+    },
+
+
+    securityText: {
+      fontSize: 11,
+      color: "#16A34A",
+      fontWeight: "600",
+    },
+
+
+    placeButton: {
+      marginHorizontal: 14,
+      marginTop: 11,
+      backgroundColor: "#16A34A",
+      height: 46,
+      borderRadius: 9,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+
+    disabledButton: {
+      opacity: 0.6,
+    },
+
+
+    placeButtonText: {
+      color: "#FFFFFF",
+      fontSize: 15,
+      fontWeight: "800",
+    },
+billRight: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  flex: 1,
+},
+
+mrpBill: {
+  fontSize: 12,
+  color: "#777777",
+  textDecorationLine: "line-through",
+  marginRight: 6,
+},
+
+billPrice: {
+  fontSize: 13,
+  fontWeight: "700",
+  color: "#222222",
+},
+
+freeText: {
+  fontSize: 13,
+  fontWeight: "700",
+  color: "#16A34A",
+},
+
+totalDivider: {
+  borderTopWidth: 1,
+  borderTopColor: "#EEEEEE",
+  marginTop: 4,
+  marginBottom: 9,
+},
+
+grandTotalLabel: {
+  fontSize: 16,
+  fontWeight: "800",
+  color: "#222222",
+},
+
+grandTotalValue: {
+  fontSize: 17,
+  fontWeight: "800",
+  color: "#16A34A",
+},
+
+savingsBox: {
+  marginTop: 10,
+  paddingTop: 10,
+  paddingBottom: 8,
+  borderTopWidth: 1,
+  borderTopColor: "#EEEEEE",
+  backgroundColor: "#F1F7FF",
+  paddingHorizontal: 10,
+  borderRadius: 8,
+},
+
+savingsTitle: {
+  fontSize: 14,
+  fontWeight: "800",
+  color: "#4A90E2",
+},
+
+savingsAmount: {
+  position: "absolute",
+  right: 10,
+  top: 10,
+  fontSize: 15,
+  fontWeight: "800",
+  color: "#4A90E2",
+},
+
+savingsText: {
+  fontSize: 10,
+  color: "#555555",
+  marginTop: 3,
+  paddingRight: 70,
+},
+
+    bottomSpace: {
+      height: 20,
+    },
+
+  });

@@ -1,4 +1,6 @@
-import React from "react";
+import React, {
+  useState,
+} from "react";
 
 import {
   SafeAreaView,
@@ -7,13 +9,30 @@ import {
   Text,
   Image,
   StyleSheet,
+  Alert,
+  TouchableOpacity,
+  TextInput,
 } from "react-native";
 
 import { RouteProp, useRoute } from "@react-navigation/native";
 
 import { RootStackParamList } from "../navigation/AppNavigator";
+import {
+  doc,
+  updateDoc,
+  addDoc,
+  collection,
+  serverTimestamp,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 
-
+import {
+  db,
+  auth,
+} from "../firebase/firebase";
+import { addToCart } from "../services/cartService";
 type OrderDetailsRouteProp =
   RouteProp<
     RootStackParamList,
@@ -22,13 +41,199 @@ type OrderDetailsRouteProp =
 
 
 export default function OrderDetailsScreen() {
+async function reorderItems() {
 
+  try {
+
+    for (
+      const item of order.items || []
+    ) {
+
+      await addToCart({
+        ...item,
+        productId:
+          item.productId || item.id,
+        quantity:
+          item.quantity || 1,
+      });
+
+    }
+
+    Alert.alert(
+      "Added to Cart",
+      "Your previous order items have been added to your cart."
+    );
+
+  } catch (error) {
+
+    console.log(
+      "Reorder error:",
+      error
+    );
+
+    Alert.alert(
+      "Error",
+      "Unable to add items to cart."
+    );
+
+  }
+
+}
+async function submitReview(
+  product: any,
+  rating: number,
+  reviewText: string
+) {
+
+  const user =
+    auth.currentUser;
+
+  if (!user) {
+
+    Alert.alert(
+      "Login Required",
+      "Please login before submitting a review."
+    );
+
+    return;
+
+  }
+
+
+  if (rating < 1) {
+
+    Alert.alert(
+      "Rating Required",
+      "Please select a star rating."
+    );
+
+    return;
+
+  }
+
+
+  try {
+    const existingReviewQuery =
+  query(
+    collection(
+      db,
+      "reviews"
+    ),
+    where(
+      "orderId",
+      "==",
+      order.id
+    ),
+    where(
+      "productId",
+      "==",
+      product.productId ||
+        product.id
+    ),
+    where(
+      "userId",
+      "==",
+      user.uid
+    )
+  );
+
+const existingReviews =
+  await getDocs(
+    existingReviewQuery
+  );
+
+if (
+  !existingReviews.empty
+) {
+
+  Alert.alert(
+    "Already Reviewed",
+    "You have already reviewed this product."
+  );
+
+  return;
+
+}
+
+    await addDoc(
+      collection(
+        db,
+        "reviews"
+      ),
+      {
+
+        productId:
+          product.productId ||
+          product.id,
+
+        productName:
+          product.name,
+
+        vendorId:
+          product.vendorId || "",
+
+        vendorName:
+          product.vendorName || "",
+
+        orderId:
+          order.id,
+
+        userId:
+          user.uid,
+
+        customerName:
+          order.customerName,
+
+        customerEmail:
+          user.email || "",
+
+        rating:
+          rating,
+
+        review:
+          reviewText.trim(),
+
+        createdAt:
+          serverTimestamp(),
+
+      }
+    );
+
+
+    Alert.alert(
+      "Review Submitted",
+      "Thank you for reviewing this product."
+    );
+
+
+  } catch (error) {
+
+    console.log(
+      "Review submission error:",
+      error
+    );
+
+    Alert.alert(
+      "Error",
+      "Unable to submit your review."
+    );
+
+  }
+
+}
   const route =
     useRoute<OrderDetailsRouteProp>();
 
   const { order } =
     route.params;
+const [reviewRating, setReviewRating] =
+  useState(0);
 
+const [reviewText, setReviewText] =
+  useState("");
+
+const [reviewProduct, setReviewProduct] =
+  useState<any>(null);
 
   function formatDate(
     timestamp: any
@@ -52,7 +257,45 @@ export default function OrderDetailsScreen() {
         }
       );
   }
+async function cancelOrder() {
 
+  try {
+
+    await updateDoc(
+      doc(
+        db,
+        "orders",
+        order.id
+      ),
+      {
+        status: "Cancelled",
+        paymentStatus:
+          order.paymentMethod === "COD"
+            ? "Pending"
+            : order.paymentStatus,
+      }
+    );
+
+    Alert.alert(
+      "Order Cancelled",
+      "Your order has been cancelled successfully."
+    );
+
+  } catch (error) {
+
+    console.log(
+      "Cancel order error:",
+      error
+    );
+
+    Alert.alert(
+      "Error",
+      "Unable to cancel the order."
+    );
+
+  }
+
+}
 
   return (
 
@@ -114,8 +357,197 @@ export default function OrderDetailsScreen() {
           </View>
 
         </View>
+{/* ORDER TRACKING */}
+
+<View
+  style={styles.section}
+>
+
+  <Text
+    style={styles.sectionTitle}
+  >
+    Order Tracking
+  </Text>
 
 
+  <View style={styles.trackingRow}>
+
+    <View style={styles.trackingLine} />
+
+    <View style={styles.trackingItem}>
+
+      <View
+        style={
+          order.status === "Pending"
+            ? styles.trackingCircleActive
+            : styles.trackingCircle
+        }
+      >
+        <Text style={styles.trackingCheck}>
+          ✓
+        </Text>
+      </View>
+
+      <Text style={styles.trackingTitle}>
+        Order placed
+      </Text>
+
+    </View>
+
+
+    <View style={styles.trackingItem}>
+
+      <View
+        style={
+          [
+            "Confirmed",
+            "Packed",
+            "Shipped",
+            "Out for delivery",
+            "Delivered",
+          ].includes(order.status)
+            ? styles.trackingCircleActive
+            : styles.trackingCircle
+        }
+      >
+        <Text style={styles.trackingCheck}>
+          ✓
+        </Text>
+      </View>
+
+      <Text style={styles.trackingTitle}>
+        Confirmed
+      </Text>
+
+    </View>
+
+
+    <View style={styles.trackingItem}>
+
+      <View
+        style={
+          [
+            "Packed",
+            "Shipped",
+            "Out for delivery",
+            "Delivered",
+          ].includes(order.status)
+            ? styles.trackingCircleActive
+            : styles.trackingCircle
+        }
+      >
+        <Text style={styles.trackingCheck}>
+          ✓
+        </Text>
+      </View>
+
+      <Text style={styles.trackingTitle}>
+        Packed
+      </Text>
+
+    </View>
+
+
+    <View style={styles.trackingItem}>
+
+      <View
+        style={
+          [
+            "Shipped",
+            "Out for delivery",
+            "Delivered",
+          ].includes(order.status)
+            ? styles.trackingCircleActive
+            : styles.trackingCircle
+        }
+      >
+        <Text style={styles.trackingCheck}>
+          ✓
+        </Text>
+      </View>
+
+      <Text style={styles.trackingTitle}>
+        Shipped
+      </Text>
+
+    </View>
+
+
+    <View style={styles.trackingItem}>
+
+      <View
+        style={
+          [
+            "Out for delivery",
+            "Delivered",
+          ].includes(order.status)
+            ? styles.trackingCircleActive
+            : styles.trackingCircle
+        }
+      >
+        <Text style={styles.trackingCheck}>
+          ✓
+        </Text>
+      </View>
+
+      <Text style={styles.trackingTitle}>
+        Out for delivery
+      </Text>
+
+    </View>
+
+
+    <View style={styles.trackingItem}>
+
+      <View
+        style={
+          order.status === "Delivered"
+            ? styles.trackingCircleActive
+            : styles.trackingCircle
+        }
+      >
+        <Text style={styles.trackingCheck}>
+          ✓
+        </Text>
+      </View>
+
+      <Text style={styles.trackingTitle}>
+        Delivered
+      </Text>
+
+    </View>
+
+  </View>
+
+</View>
+{order.status === "Pending" && (
+
+  <TouchableOpacity
+    style={styles.cancelButton}
+    onPress={cancelOrder}
+  >
+
+    <Text
+      style={styles.cancelButtonText}
+    >
+      Cancel Order
+    </Text>
+
+  </TouchableOpacity>
+
+)}
+<TouchableOpacity
+  style={styles.reorderButton}
+  onPress={reorderItems}
+>
+
+  <Text
+    style={styles.reorderButtonText}
+  >
+    Buy Again
+  </Text>
+
+</TouchableOpacity>
         {/* PRODUCTS */}
 
         <View
@@ -452,7 +884,133 @@ export default function OrderDetailsScreen() {
           </View>
 
         </View>
+{/* PRODUCT REVIEW */}
 
+{order.items?.map(
+  (
+    item: any,
+    index: number
+  ) => (
+
+    <View
+      key={
+        item.id ||
+        item.productId ||
+        index
+      }
+      style={styles.reviewSection}
+    >
+
+      <Text
+        style={styles.sectionTitle}
+      >
+        Rate this product
+      </Text>
+
+
+      <Text
+        style={styles.reviewProductName}
+      >
+        {item.name}
+      </Text>
+
+
+      {/* STARS */}
+
+      <View
+        style={styles.starsRow}
+      >
+
+        {[1, 2, 3, 4, 5].map(
+          (star) => (
+
+            <TouchableOpacity
+              key={star}
+              onPress={() => {
+
+                setReviewProduct(
+                  item
+                );
+
+                setReviewRating(
+                  star
+                );
+
+              }}
+            >
+
+              <Text
+                style={
+                  star <= reviewRating
+                    ? styles.starActive
+                    : styles.starInactive
+                }
+              >
+                ★
+              </Text>
+
+            </TouchableOpacity>
+
+          )
+        )}
+
+      </View>
+
+
+      {/* REVIEW TEXT */}
+
+      {reviewProduct?.productId ===
+        (item.productId ||
+          item.id) && (
+
+        <TextInput
+          style={styles.reviewInput}
+          placeholder="Write your review..."
+          placeholderTextColor="#999999"
+          value={reviewText}
+          onChangeText={
+            setReviewText
+          }
+          multiline
+          maxLength={500}
+        />
+
+      )}
+
+
+      {/* SUBMIT */}
+
+      {reviewProduct?.productId ===
+        (item.productId ||
+          item.id) && (
+
+        <TouchableOpacity
+          style={styles.reviewButton}
+          onPress={() =>
+            submitReview(
+              item,
+              reviewRating,
+              reviewText
+            )
+          }
+        >
+
+          <Text
+            style={
+              styles.reviewButtonText
+            }
+          >
+            Submit Review
+          </Text>
+
+        </TouchableOpacity>
+
+      )}
+
+    </View>
+
+  )
+)}
 
         <View
           style={styles.bottomSpace}
@@ -685,8 +1243,147 @@ const styles =
       fontWeight: "800",
       color: "#16A34A",
     },
+trackingRow: {
+  position: "relative",
+  paddingTop: 5,
+},
 
+trackingLine: {
+  position: "absolute",
+  left: 9,
+  top: 14,
+  bottom: 14,
+  width: 2,
+  backgroundColor: "#E5E5E5",
+},
 
+trackingItem: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginBottom: 13,
+},
+
+trackingCircle: {
+  width: 20,
+  height: 20,
+  borderRadius: 10,
+  borderWidth: 2,
+  borderColor: "#CCCCCC",
+  backgroundColor: "#FFFFFF",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+trackingCircleActive: {
+  width: 20,
+  height: 20,
+  borderRadius: 10,
+  backgroundColor: "#16A34A",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+trackingCheck: {
+  fontSize: 11,
+  color: "#FFFFFF",
+  fontWeight: "800",
+},
+
+trackingTitle: {
+  fontSize: 12,
+  color: "#444444",
+  marginLeft: 10,
+  fontWeight: "600",
+},
+cancelButton: {
+  marginTop: 7,
+  marginHorizontal: 14,
+  height: 44,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "#E53935",
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "#FFFFFF",
+},
+
+cancelButtonText: {
+  color: "#E53935",
+  fontSize: 13,
+  fontWeight: "800",
+},
+reorderButton: {
+  marginTop: 7,
+  marginHorizontal: 14,
+  height: 44,
+  borderRadius: 8,
+  backgroundColor: "#16A34A",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+reorderButtonText: {
+  color: "#FFFFFF",
+  fontSize: 13,
+  fontWeight: "800",
+},
+reviewSection: {
+  backgroundColor: "#FFFFFF",
+  marginTop: 7,
+  padding: 14,
+},
+
+reviewProductName: {
+  fontSize: 13,
+  fontWeight: "700",
+  color: "#333333",
+  marginBottom: 8,
+},
+
+starsRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginBottom: 9,
+},
+
+starActive: {
+  fontSize: 28,
+  color: "#FFB000",
+  marginRight: 5,
+},
+
+starInactive: {
+  fontSize: 28,
+  color: "#D5D5D5",
+  marginRight: 5,
+},
+
+reviewInput: {
+  minHeight: 70,
+  borderWidth: 1,
+  borderColor: "#DDDDDD",
+  borderRadius: 8,
+  paddingHorizontal: 10,
+  paddingVertical: 8,
+  fontSize: 12,
+  color: "#333333",
+  textAlignVertical: "top",
+  marginBottom: 9,
+},
+
+reviewButton: {
+  height: 42,
+  borderRadius: 8,
+  backgroundColor: "#16A34A",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+reviewButtonText: {
+  color: "#FFFFFF",
+  fontSize: 13,
+  fontWeight: "800",
+},
     bottomSpace: {
       height: 25,
     },

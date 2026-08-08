@@ -47,12 +47,14 @@ export default function HomeScreen() {
   const [products, setProducts] =
     useState<any[]>([]);
 
+
   const [loading, setLoading] =
     useState(true);
 
-
   useEffect(() => {
+
     loadProducts();
+
   }, []);
 
 
@@ -77,6 +79,7 @@ export default function HomeScreen() {
       setLoading(false);
 
     }
+
   }
 
 
@@ -128,83 +131,106 @@ export default function HomeScreen() {
 
         {/* HEADER */}
 
-        <View style={styles.header}>
+<View style={styles.header}>
 
-          <Text style={styles.logo}>
-            YOMICO
-          </Text>
+  {/* YOMICO LOGO */}
 
-          <View
-            style={styles.headerIcons}
-          >
+  <Text style={styles.logo}>
+    YOMICO
+  </Text>
 
-            <TouchableOpacity
-              style={styles.headerIconButton}
-            >
-              <MaterialIcons
-                name="notifications-none"
-                size={24}
-                color="#16A34A"
-              />
-            </TouchableOpacity>
+
+  {/* HEADER ICONS */}
+
+  <View style={styles.headerIcons}>
+
+    {/* Orders */}
+
+    <TouchableOpacity
+      onPress={() =>
+        navigation.navigate("Orders")
+      }
+      style={styles.headerIconButton}
+      activeOpacity={0.7}
+    >
+      <MaterialIcons
+        name="receipt-long"
+        size={22}
+        color="#16A34A"
+      />
+    </TouchableOpacity>
+
+
+    {/* Profile */}
+
+    <TouchableOpacity
+      onPress={() =>
+        navigation.navigate("Profile")
+      }
+      style={styles.headerIconButton}
+      activeOpacity={0.7}
+    >
+      <MaterialIcons
+        name="person-outline"
+        size={22}
+        color="#16A34A"
+      />
+    </TouchableOpacity>
+
+
+    {/* Cart */}
+
+    <TouchableOpacity
+      onPress={() =>
+        navigation.navigate("Cart")
+      }
+      style={styles.headerIconButton}
+      activeOpacity={0.7}
+    >
+      <MaterialIcons
+        name="shopping-cart"
+        size={22}
+        color="#16A34A"
+      />
+    </TouchableOpacity>
+
+  </View>
+
+</View>
 <TouchableOpacity
-  onPress={() =>
-    navigation.navigate("Orders")
-  }
-  style={styles.headerIconButton}
+ onPress={() =>
+  navigation.navigate("Search")
+}
+  activeOpacity={0.8}
 >
-  <MaterialIcons
-    name="receipt-long"
-    size={24}
-    color="#16A34A"
-  />
+
+  <View
+    style={styles.searchBox}
+  >
+
+    <MaterialIcons
+      name="search"
+      size={20}
+      color="#777"
+    />
+
+    <TextInput
+      placeholder="Search products..."
+      placeholderTextColor="#888"
+      style={styles.searchInput}
+      editable={false}
+      pointerEvents="none"
+    />
+
+    <MaterialIcons
+      name="mic-none"
+      size={20}
+      color="#777"
+    />
+
+  </View>
+
 </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() =>
-                navigation.navigate("Cart")
-              }
-              style={styles.headerIconButton}
-            >
-
-              <MaterialIcons
-                name="shopping-cart"
-                size={24}
-                color="#16A34A"
-              />
-
-            </TouchableOpacity>
-
-          </View>
-
-        </View>
-
-
-        {/* SEARCH */}
-
-        <View
-          style={styles.searchBox}
-        >
-
-          <MaterialIcons
-            name="search"
-            size={20}
-            color="#777"
-          />
-
-          <TextInput
-            placeholder="Search products..."
-            placeholderTextColor="#888"
-            style={styles.searchInput}
-          />
-
-          <MaterialIcons
-            name="mic-none"
-            size={20}
-            color="#777"
-          />
-
-        </View>
-
 
         {/* LOCATION */}
 
@@ -251,9 +277,18 @@ export default function HomeScreen() {
           }) => (
 
             <TouchableOpacity
-              style={styles.category}
-              activeOpacity={0.8}
-            >
+  style={styles.category}
+  activeOpacity={0.8}
+  onPress={() =>
+    navigation.navigate(
+      "Search",
+      {
+        category:
+          item.name,
+      }
+    )
+  }
+>
 
               <View
                 style={styles.categoryIcon}
@@ -507,9 +542,12 @@ const styles =
 
 
     headerIconButton: {
-      marginLeft: 8,
-      padding: 3,
-    },
+  width: 34,
+  height: 34,
+  alignItems: "center",
+  justifyContent: "center",
+  marginLeft: 3,
+},
 
 
     /* SEARCH */

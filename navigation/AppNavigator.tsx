@@ -17,6 +17,10 @@ import CartScreen from "../screens/CartScreen";
 import CheckoutScreen from "../screens/CheckoutScreen";
 import OrdersScreen from "../screens/OrdersScreen";
 import OrderDetailsScreen from "../screens/OrderDetailsScreen";
+import ProfileScreen from "../screens/ProfileScreen";
+import WishlistScreen from "../screens/WishlistScreen";
+import AddressScreen from "../screens/AddressScreen";
+import SearchScreen from "../screens/SearchScreen";
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -28,6 +32,10 @@ export type RootStackParamList = {
   Checkout: undefined;
   Orders: undefined;
 OrderDetails: {order: any;};
+Profile: undefined;
+Wishlist: undefined;
+Address: undefined;
+Search:| {category?: string; } | undefined;
 };
 
 
@@ -72,7 +80,10 @@ export default function AppNavigator() {
           name="Home"
           component={HomeScreen}
         />
-
+<Stack.Screen
+  name="Search"
+  component={SearchScreen}
+/>
 
         <Stack.Screen
           name="ProductDetails"
@@ -98,7 +109,18 @@ export default function AppNavigator() {
   name="OrderDetails"
   component={OrderDetailsScreen}
 />
-
+<Stack.Screen
+  name="Profile"
+  component={ProfileScreen}
+/>
+<Stack.Screen
+  name="Wishlist"
+  component={WishlistScreen}
+/>
+<Stack.Screen
+  name="Address"
+  component={AddressScreen}
+/>
       </Stack.Navigator>
 
     </NavigationContainer>
