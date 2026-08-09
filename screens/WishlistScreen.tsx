@@ -41,7 +41,7 @@ import {
 type NavigationProp =
   NativeStackNavigationProp<
     RootStackParamList,
-    "Wishlist"
+    "ProductDetails"
   >;
 
 
@@ -503,9 +503,9 @@ async function addWishlistItemToCart(
             }
             activeOpacity={0.8}
             onPress={() =>
-              navigation.navigate(
-                "Home"
-              )
+              navigation.navigate("MainTabs", {
+                screen: "HomeTab",
+              })
             }
           >
 

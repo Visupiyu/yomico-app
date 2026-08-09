@@ -39,7 +39,7 @@ export default function CartScreen() {
     useNavigation<
       NativeStackNavigationProp<
         RootStackParamList,
-        "Cart"
+        "Checkout"
       >
     >();
 

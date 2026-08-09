@@ -1,170 +1,123 @@
 import React from "react";
 
-import {
-  NavigationContainer,
-} from "@react-navigation/native";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
-import {
-  createNativeStackNavigator,
-} from "@react-navigation/native-stack";
+import { MaterialIcons } from "@expo/vector-icons";
 
-import SplashScreen from "../screens/SplashScreen";
-import LoginScreen from "../screens/LoginScreen";
-import RegisterScreen from "../screens/RegisterScreen";
+import { RootStackParamList, TabParamList } from "./types";
+export type { RootStackParamList, TabParamList };
+
+/* ONLY the four tab screens are imported here.
+   Every other screen import is commented out. If the tabs work now,
+   one of the commented-out screens was breaking the whole module —
+   uncomment them a few at a time to find which. */
+
 import HomeScreen from "../screens/HomeScreen";
-import ProductDetailsScreen from "../screens/ProductDetailsScreen";
 import CartScreen from "../screens/CartScreen";
-import CheckoutScreen from "../screens/CheckoutScreen";
-import OrdersScreen from "../screens/OrdersScreen";
-import OrderDetailsScreen from "../screens/OrderDetailsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import WishlistScreen from "../screens/WishlistScreen";
-import AddressScreen from "../screens/AddressScreen";
-import SearchScreen from "../screens/SearchScreen";
-import ProductQuestionsScreen from "../screens/ProductQuestionsScreen";
-import ChatScreen from "../screens/ChatScreen";
-import NotificationsScreen from "../screens/NotificationsScreen";
-import RecentlyViewedScreen from "../screens/RecentlyViewedScreen";
-import EditProfileScreen from "../screens/EditProfileScreen";
-import EditAddressScreen from "../screens/EditAddressScreen";
-import SupportScreen from "../screens/SupportScreen";
 
-export type RootStackParamList = {
-  Splash: undefined;
-  Login: undefined;
-  Register: undefined;
-  Home: undefined;
-  ProductDetails: {product: any;};
-  Cart: undefined;
-  Checkout: undefined;
-  Orders: undefined;
-OrderDetails: {order: any;};
-Profile: undefined;
-EditProfile: undefined;
-Wishlist: undefined;
-Address: undefined;
-EditAddress: { addressId: string;};
-Search:| {category?: string; } | undefined;
-ProductQuestions: {productId: string;productName: string; vendorId: string; vendorName: string;};
-Chat: {productId: string; productName: string; vendorId: string; vendorName: string;};
-Notifications: undefined;
-RecentlyViewed: undefined;
-Support: | { orderId?: string; } | undefined;};
+// import SplashScreen from "../screens/SplashScreen";
+// import LoginScreen from "../screens/LoginScreen";
+// import RegisterScreen from "../screens/RegisterScreen";
+// import ProductDetailsScreen from "../screens/ProductDetailsScreen";
+// import CheckoutScreen from "../screens/CheckoutScreen";
+// import OrdersScreen from "../screens/OrdersScreen";
+// import OrderDetailsScreen from "../screens/OrderDetailsScreen";
+// import AddressScreen from "../screens/AddressScreen";
+// import SearchScreen from "../screens/SearchScreen";
+// import ProductQuestionsScreen from "../screens/ProductQuestionsScreen";
+// import ChatScreen from "../screens/ChatScreen";
+// import NotificationsScreen from "../screens/NotificationsScreen";
+// import RecentlyViewedScreen from "../screens/RecentlyViewedScreen";
+// import EditProfileScreen from "../screens/EditProfileScreen";
+// import EditAddressScreen from "../screens/EditAddressScreen";
+// import SupportScreen from "../screens/SupportScreen";
 
+const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<TabParamList>();
 
-const Stack =
-  createNativeStackNavigator<
-    RootStackParamList
-  >();
+/* Logs at module load. Any `undefined` here identifies a broken screen. */
+console.log("=== SCREEN RESOLUTION ===");
+console.log("Home:", typeof HomeScreen);
+console.log("Cart:", typeof CartScreen);
+console.log("Profile:", typeof ProfileScreen);
+console.log("Wishlist:", typeof WishlistScreen);
 
+function BottomTabs() {
+  return (
+    <Tab.Navigator
+      initialRouteName="HomeTab"
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: "#16A34A",
+        tabBarInactiveTintColor: "#64748B",
+        tabBarStyle: {
+          height: 62,
+          paddingBottom: 7,
+          paddingTop: 5,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "600",
+        },
+      }}
+    >
+      <Tab.Screen
+        name="HomeTab"
+        component={HomeScreen}
+        options={{
+          tabBarLabel: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="home" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="CartTab"
+        component={CartScreen}
+        options={{
+          tabBarLabel: "Cart",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="shopping-cart" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="WishlistTab"
+        component={WishlistScreen}
+        options={{
+          tabBarLabel: "Wishlist",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="favorite-border" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="ProfileTab"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="person" color={color} size={size} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
 
 export default function AppNavigator() {
-
   return (
-
     <NavigationContainer>
-
       <Stack.Navigator
-        initialRouteName="Splash"
-        screenOptions={{
-          headerShown: false,
-        }}
+        initialRouteName="MainTabs"
+        screenOptions={{ headerShown: false }}
       >
-
-        <Stack.Screen
-          name="Splash"
-          component={SplashScreen}
-        />
-
-
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-        />
-
-
-        <Stack.Screen
-          name="Register"
-          component={RegisterScreen}
-        />
-
-
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-        />
-<Stack.Screen
-  name="Search"
-  component={SearchScreen}
-/>
-
-        <Stack.Screen
-          name="ProductDetails"
-          component={ProductDetailsScreen}
-        />
-<Stack.Screen
-  name="ProductQuestions"
-  component={ProductQuestionsScreen}
-/>
-
-        <Stack.Screen
-          name="Cart"
-          component={CartScreen}
-        />
-
-
-        <Stack.Screen
-          name="Checkout"
-          component={CheckoutScreen}
-        />
-        <Stack.Screen
-  name="Orders"
-  component={OrdersScreen}
-/>
-<Stack.Screen
-  name="OrderDetails"
-  component={OrderDetailsScreen}
-/>
-<Stack.Screen
-  name="Profile"
-  component={ProfileScreen}
-/>
-<Stack.Screen
-  name="EditProfile"
-  component={EditProfileScreen}
-/>
-<Stack.Screen
-  name="Wishlist"
-  component={WishlistScreen}
-/>
-<Stack.Screen
-  name="Address"
-  component={AddressScreen}
-/>
-<Stack.Screen
-  name="EditAddress"
-  component={EditAddressScreen}
-/>
-<Stack.Screen
-  name="Chat"
-  component={ChatScreen}
-/>
-<Stack.Screen
-  name="Notifications"
-  component={NotificationsScreen}
-/>
-<Stack.Screen
-  name="RecentlyViewed"
-  component={RecentlyViewedScreen}
-/>
-<Stack.Screen
-  name="Support"
-  component={SupportScreen}
-/>
+        <Stack.Screen name="MainTabs" component={BottomTabs} />
       </Stack.Navigator>
-
     </NavigationContainer>
-
   );
-
 }

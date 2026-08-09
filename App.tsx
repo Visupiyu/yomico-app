@@ -1,3 +1,6 @@
+import { enableScreens } from "react-native-screens";
+enableScreens(false);
+
 import React from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import AppNavigator from "./navigation/AppNavigator";

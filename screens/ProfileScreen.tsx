@@ -37,7 +37,7 @@ import {
 type NavigationProp =
   NativeStackNavigationProp<
     RootStackParamList,
-    "Profile"
+    "EditProfile"
   >;
 
 
@@ -533,7 +533,7 @@ export default function ProfileScreen() {
             style={styles.menuRow}
             activeOpacity={0.7}
             onPress={() =>
-    navigation.navigate("Wishlist")
+    navigation.navigate("MainTabs", { screen: "WishlistTab" })
   }
           >
 
