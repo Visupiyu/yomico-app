@@ -12,10 +12,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Modal,
 } from "react-native";
 
 import { MaterialIcons } from "@expo/vector-icons";
-
+import ImageViewer from "react-native-image-zoom-viewer";
 import {
   addDoc,
   collection,
@@ -57,6 +58,19 @@ export default function ProductDetailsScreen() {
 
   const { product } =
     route.params;
+    const productImages =
+  Array.isArray(product.images) &&
+  product.images.length > 0
+    ? product.images.slice(0, 5)
+    : product.image
+      ? [product.image]
+      : [];
+
+const [selectedImage, setSelectedImage] =
+  useState(0);
+
+const [zoomVisible, setZoomVisible] =
+  useState(false);
 const [reviews, setReviews] =
   useState<any[]>([]);
 
@@ -318,15 +332,238 @@ saveRecentlyViewed(
         }
       >
 
-        <Image
-          source={{
-            uri:
-              product.images?.[0] ||
-              product.image,
-          }}
-          style={styles.image}
-          resizeMode="contain"
-        />
+       {/* =========================
+    PRODUCT IMAGE GALLERY
+========================== */}
+
+<View
+  style={
+    styles.gallery
+  }
+>
+
+  <TouchableOpacity
+    activeOpacity={0.95}
+    onPress={() =>
+      setZoomVisible(true)
+    }
+    style={
+      styles.mainImageBox
+    }
+  >
+
+    <Image
+      source={{
+        uri:
+          productImages[selectedImage] ||
+          productImages[0] ||
+          "",
+      }}
+      style={
+        styles.image
+      }
+      resizeMode="contain"
+    />
+
+    {/* IMAGE COUNT */}
+
+    {productImages.length > 0 && (
+
+      <View
+        style={
+          styles.imageCounter
+        }
+      >
+
+        <Text
+          style={
+            styles.imageCounterText
+          }
+        >
+          {selectedImage + 1} / {productImages.length}
+        </Text>
+
+      </View>
+
+    )}
+
+    {/* ZOOM ICON */}
+
+    <View
+      style={
+        styles.zoomIcon
+      }
+    >
+
+      <MaterialIcons
+        name="zoom-in"
+        size={21}
+        color="#FFFFFF"
+      />
+
+    </View>
+
+  </TouchableOpacity>
+
+
+  {/* =========================
+      THUMBNAILS
+  ========================== */}
+
+  {productImages.length > 1 && (
+
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={
+        false
+      }
+      contentContainerStyle={
+        styles.thumbnailList
+      }
+    >
+
+      {productImages.map(
+        (
+          image: string,
+          index: number
+        ) => (
+
+          <TouchableOpacity
+            key={
+              `${image}-${index}`
+            }
+            activeOpacity={0.8}
+            onPress={() =>
+              setSelectedImage(
+                index
+              )
+            }
+            style={[
+              styles.thumbnail,
+              index === selectedImage &&
+                styles.thumbnailSelected,
+            ]}
+          >
+
+            <Image
+              source={{
+                uri:
+                  image,
+              }}
+              style={
+                styles.thumbnailImage
+              }
+              resizeMode="contain"
+            />
+
+          </TouchableOpacity>
+
+        )
+      )}
+
+    </ScrollView>
+
+  )}
+
+</View>
+
+
+{/* =========================
+    FULL SCREEN ZOOM VIEWER
+========================== */}
+
+<Modal
+  visible={
+    zoomVisible
+  }
+  transparent
+  animationType="fade"
+  onRequestClose={() =>
+    setZoomVisible(false)
+  }
+>
+
+  <View
+    style={
+      styles.zoomContainer
+    }
+  >
+
+    <TouchableOpacity
+      style={
+        styles.closeZoom
+      }
+      activeOpacity={0.8}
+      onPress={() =>
+        setZoomVisible(false)
+      }
+    >
+
+      <MaterialIcons
+        name="close"
+        size={28}
+        color="#FFFFFF"
+      />
+
+    </TouchableOpacity>
+
+
+    <ImageViewer
+      imageUrls={
+        productImages.map(
+          (uri: string) => ({
+            url: uri,
+          })
+        )
+      }
+      index={
+        selectedImage
+      }
+      enableSwipeDown
+      onSwipeDown={() =>
+        setZoomVisible(false)
+      }
+      onChange={
+        (index?: number) => {
+          if (
+            typeof index === "number"
+          ) {
+            setSelectedImage(
+              index
+            );
+          }
+        }
+      }
+      enablePreload
+      saveToLocalByLongPress={
+        false
+      }
+      backgroundColor="#000000"
+      renderIndicator={(
+        currentIndex,
+        allSize
+      ) => (
+        <View
+          style={
+            styles.viewerIndicator
+          }
+        >
+
+          <Text
+            style={
+              styles.viewerIndicatorText
+            }
+          >
+            {currentIndex} / {allSize}
+          </Text>
+
+        </View>
+      )}
+    />
+
+  </View>
+
+</Modal>
 
 
         <View
@@ -641,7 +878,107 @@ const styles =
       height: 280,
       backgroundColor: "#FFFFFF",
     },
+gallery: {
+  width: "100%",
+  backgroundColor: "#FFFFFF",
+},
 
+mainImageBox: {
+  width: "100%",
+  height: 300,
+  backgroundColor: "#FFFFFF",
+  position: "relative",
+},
+
+imageCounter: {
+  position: "absolute",
+  right: 12,
+  bottom: 12,
+  backgroundColor: "rgba(0,0,0,0.58)",
+  paddingHorizontal: 9,
+  paddingVertical: 5,
+  borderRadius: 14,
+},
+
+imageCounterText: {
+  color: "#FFFFFF",
+  fontSize: 10,
+  fontWeight: "700",
+},
+
+zoomIcon: {
+  position: "absolute",
+  right: 12,
+  top: 12,
+  width: 36,
+  height: 36,
+  borderRadius: 18,
+  backgroundColor: "rgba(0,0,0,0.55)",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+thumbnailList: {
+  paddingHorizontal: 12,
+  paddingVertical: 10,
+},
+
+thumbnail: {
+  width: 58,
+  height: 58,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "#E2E8E4",
+  backgroundColor: "#FFFFFF",
+  marginRight: 8,
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+},
+
+thumbnailSelected: {
+  borderWidth: 2,
+  borderColor: "#16A34A",
+},
+
+thumbnailImage: {
+  width: "90%",
+  height: "90%",
+},
+
+zoomContainer: {
+  flex: 1,
+  backgroundColor: "#000000",
+},
+
+closeZoom: {
+  position: "absolute",
+  top: 45,
+  right: 18,
+  width: 42,
+  height: 42,
+  borderRadius: 21,
+  backgroundColor: "rgba(0,0,0,0.65)",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 10,
+},
+
+viewerIndicator: {
+  position: "absolute",
+  top: 50,
+  left: 18,
+  backgroundColor: "rgba(0,0,0,0.55)",
+  paddingHorizontal: 10,
+  paddingVertical: 5,
+  borderRadius: 14,
+},
+
+viewerIndicatorText: {
+  color: "#FFFFFF",
+  fontSize: 11,
+  fontWeight: "700",
+},
 
     content: {
       padding: 14,

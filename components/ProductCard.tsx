@@ -71,7 +71,6 @@ export default function ProductCard({
         product
       );
 
-
       Alert.alert(
         "Added to Cart",
         `${product.name || "Product"} has been added to your cart.`
@@ -83,7 +82,6 @@ export default function ProductCard({
         "Product Card Cart Error:",
         error
       );
-
 
       Alert.alert(
         "Error",
@@ -161,6 +159,7 @@ export default function ProductCard({
           db,
           "wishlist"
         ),
+
         {
 
           userId:
@@ -211,7 +210,6 @@ export default function ProductCard({
         error
       );
 
-
       Alert.alert(
         "Error",
         "Unable to add product to wishlist."
@@ -222,13 +220,41 @@ export default function ProductCard({
   }
 
 
+  const imageSource =
+    product.images?.[0] ||
+    product.image ||
+    "";
+
+
+  const price =
+    Number(product.price || 0);
+
+
+  const mrp =
+    Number(product.mrp || 0);
+
+
+  const discount =
+    Number(
+      product.discountPercent || 0
+    );
+
+
+  const rating =
+    Number(
+      product.rating ||
+      product.averageRating ||
+      0
+    );
+
+
   return (
 
     <TouchableOpacity
       style={
         styles.card
       }
-      activeOpacity={0.8}
+      activeOpacity={0.9}
       onPress={() =>
         navigation.navigate(
           "ProductDetails",
@@ -239,83 +265,56 @@ export default function ProductCard({
       }
     >
 
-      <Image
-        source={{
-          uri:
-            product.images?.[0] ||
-            product.image,
-        }}
-        style={
-          styles.image
-        }
-        resizeMode="cover"
-      />
-
-
-      <Text
-        style={
-          styles.name
-        }
-        numberOfLines={2}
-      >
-        {product.name}
-      </Text>
-
+      {/* IMAGE AREA */}
 
       <View
         style={
-          styles.priceRow
+          styles.imageBox
         }
       >
 
-        <Text
+        <Image
+          source={{
+            uri:
+              imageSource,
+          }}
           style={
-            styles.price
+            styles.image
           }
-        >
-          ₹{product.price}
-        </Text>
+          resizeMode="contain"
+        />
 
 
-        {product.mrp ? (
+        {/* DISCOUNT */}
 
-          <Text
+        {discount > 0 ? (
+
+          <View
             style={
-              styles.mrp
+              styles.discountBadge
             }
           >
-            ₹{product.mrp}
-          </Text>
+
+            <Text
+              style={
+                styles.discountBadgeText
+              }
+            >
+              {discount}% OFF
+            </Text>
+
+          </View>
 
         ) : null}
 
-      </View>
-
-
-      {product.discountPercent ? (
-
-        <Text
-          style={
-            styles.discount
-          }
-        >
-          {product.discountPercent}%
-          {" "}OFF
-        </Text>
-
-      ) : null}
-
-
-      <View
-        style={
-          styles.bottomRow
-        }
-      >
 
         {/* WISHLIST */}
 
         <TouchableOpacity
-          activeOpacity={0.7}
+          style={
+            styles.wishlistButton
+          }
+          activeOpacity={0.75}
           onPress={
             handleAddToWishlist
           }
@@ -324,31 +323,169 @@ export default function ProductCard({
           <MaterialIcons
             name="favorite-border"
             size={19}
-            color="#E53935"
+            color="#333333"
           />
 
         </TouchableOpacity>
 
+      </View>
 
-        {/* CART */}
 
-        <TouchableOpacity
+      {/* PRODUCT INFORMATION */}
+
+      <View
+        style={
+          styles.content
+        }
+      >
+
+        <Text
           style={
-            styles.cartButton
+            styles.name
           }
-          activeOpacity={0.7}
-          onPress={
-            handleAddToCart
+          numberOfLines={2}
+        >
+          {product.name ||
+            "Product"}
+        </Text>
+
+
+        {/* RATING */}
+
+        {rating > 0 ? (
+
+          <View
+            style={
+              styles.ratingRow
+            }
+          >
+
+            <View
+              style={
+                styles.ratingBox
+              }
+            >
+
+              <Text
+                style={
+                  styles.ratingText
+                }
+              >
+                {rating.toFixed(1)}
+              </Text>
+
+              <MaterialIcons
+                name="star"
+                size={11}
+                color="#FFFFFF"
+              />
+
+            </View>
+
+            <Text
+              style={
+                styles.ratingLabel
+              }
+            >
+              Rated
+            </Text>
+
+          </View>
+
+        ) : null}
+
+
+        {/* PRICE */}
+
+        <View
+          style={
+            styles.priceRow
           }
         >
 
-          <MaterialIcons
-            name="shopping-cart"
-            size={16}
-            color="#FFFFFF"
-          />
+          <Text
+            style={
+              styles.price
+            }
+          >
+            ₹{price.toLocaleString("en-IN")}
+          </Text>
 
-        </TouchableOpacity>
+
+          {mrp > price ? (
+
+            <Text
+              style={
+                styles.mrp
+              }
+            >
+              ₹{mrp.toLocaleString("en-IN")}
+            </Text>
+
+          ) : null}
+
+        </View>
+
+
+        {/* DISCOUNT */}
+
+        {discount > 0 ? (
+
+          <Text
+            style={
+              styles.discount
+            }
+          >
+            {discount}% off
+          </Text>
+
+        ) : null}
+
+
+        {/* BOTTOM ACTIONS */}
+
+        <View
+          style={
+            styles.bottomRow
+          }
+        >
+
+          <Text
+            style={
+              styles.viewText
+            }
+          >
+            View details
+          </Text>
+
+
+          <TouchableOpacity
+            style={
+              styles.cartButton
+            }
+            activeOpacity={0.8}
+            onPress={
+              handleAddToCart
+            }
+          >
+
+            <MaterialIcons
+              name="add-shopping-cart"
+              size={15}
+              color="#FFFFFF"
+            />
+
+            <Text
+              style={
+                styles.cartButtonText
+              }
+            >
+              Add
+            </Text>
+
+          </TouchableOpacity>
+
+        </View>
 
       </View>
 
@@ -363,32 +500,159 @@ const styles =
   StyleSheet.create({
 
     card: {
-      width: 135,
+      width: 158,
       backgroundColor:
         "#FFFFFF",
-      borderRadius: 9,
-      padding: 6,
-      marginRight: 7,
-      marginVertical: 3,
-      elevation: 2,
+      borderRadius: 13,
+      marginRight: 10,
+      marginVertical: 5,
+      overflow: "hidden",
+
+      elevation: 3,
+
+      shadowColor:
+        "#000000",
+
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+
+      shadowOpacity:
+        0.08,
+
+      shadowRadius: 5,
+    },
+
+
+    imageBox: {
+      height: 142,
+      backgroundColor:
+        "#F7F9F8",
+      position:
+        "relative",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
     },
 
 
     image: {
-      width: "100%",
-      height: 100,
-      borderRadius: 7,
+      width: "88%",
+      height: "88%",
+    },
+
+
+    discountBadge: {
+      position:
+        "absolute",
+      left: 8,
+      top: 8,
       backgroundColor:
-        "#F5F5F5",
+        "#16A34A",
+      paddingHorizontal: 7,
+      paddingVertical: 4,
+      borderRadius: 5,
+    },
+
+
+    discountBadgeText: {
+      color:
+        "#FFFFFF",
+      fontSize: 9,
+      fontWeight:
+        "800",
+    },
+
+
+    wishlistButton: {
+      position:
+        "absolute",
+      right: 8,
+      top: 8,
+      width: 31,
+      height: 31,
+      borderRadius: 16,
+      backgroundColor:
+        "#FFFFFF",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+
+      elevation: 2,
+
+      shadowColor:
+        "#000000",
+
+      shadowOffset: {
+        width: 0,
+        height: 1,
+      },
+
+      shadowOpacity:
+        0.12,
+
+      shadowRadius: 3,
+    },
+
+
+    content: {
+      paddingHorizontal: 9,
+      paddingTop: 8,
+      paddingBottom: 9,
     },
 
 
     name: {
-      fontSize: 11,
-      fontWeight: "600",
+      fontSize: 12,
+      lineHeight: 17,
+      fontWeight:
+        "600",
+      color:
+        "#202020",
+      minHeight: 34,
+    },
+
+
+    ratingRow: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
       marginTop: 5,
-      minHeight: 30,
-      color: "#222",
+    },
+
+
+    ratingBox: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      backgroundColor:
+        "#16A34A",
+      paddingHorizontal: 5,
+      paddingVertical: 3,
+      borderRadius: 4,
+    },
+
+
+    ratingText: {
+      color:
+        "#FFFFFF",
+      fontSize: 9,
+      fontWeight:
+        "800",
+      marginRight: 2,
+    },
+
+
+    ratingLabel: {
+      marginLeft: 5,
+      fontSize: 9,
+      color:
+        "#777777",
     },
 
 
@@ -397,51 +661,82 @@ const styles =
         "row",
       alignItems:
         "center",
-      marginTop: 4,
+      marginTop: 6,
     },
 
 
     price: {
-      fontSize: 14,
-      fontWeight: "700",
-      color: "#16A34A",
+      fontSize: 16,
+      fontWeight:
+        "900",
+      color:
+        "#111111",
     },
 
 
     mrp: {
-      marginLeft: 5,
+      marginLeft: 6,
       fontSize: 10,
+      color:
+        "#888888",
       textDecorationLine:
         "line-through",
-      color: "#888",
     },
 
 
     discount: {
-      color: "#C2185B",
+      marginTop: 2,
       fontSize: 10,
-      marginTop: 3,
-      fontWeight: "700",
+      fontWeight:
+        "700",
+      color:
+        "#16A34A",
     },
 
 
     bottomRow: {
       flexDirection:
         "row",
-      justifyContent:
-        "space-between",
-      marginTop: 6,
       alignItems:
         "center",
+      justifyContent:
+        "space-between",
+      marginTop: 8,
+    },
+
+
+    viewText: {
+      fontSize: 9,
+      color:
+        "#777777",
+      fontWeight:
+        "600",
     },
 
 
     cartButton: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
       backgroundColor:
         "#16A34A",
-      paddingHorizontal: 7,
-      paddingVertical: 5,
-      borderRadius: 6,
+      minWidth: 57,
+      height: 29,
+      paddingHorizontal: 8,
+      borderRadius: 7,
+    },
+
+
+    cartButtonText: {
+      marginLeft: 4,
+      color:
+        "#FFFFFF",
+      fontSize: 10,
+      fontWeight:
+        "800",
     },
 
   });

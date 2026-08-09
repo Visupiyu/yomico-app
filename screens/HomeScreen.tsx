@@ -270,7 +270,275 @@ const heroSlides = [
     );
 
   }
+function renderDealsProducts(
+  data: any[]
+) {
 
+  if (loading) {
+
+    return (
+      <View
+        style={
+          styles.loadingBox
+        }
+      >
+        <Text
+          style={
+            styles.loadingText
+          }
+        >
+          Loading products...
+        </Text>
+      </View>
+    );
+
+  }
+
+
+  if (!data.length) {
+
+    return (
+      <View
+        style={
+          styles.emptyBox
+        }
+      >
+        <Text
+          style={
+            styles.emptyText
+          }
+        >
+          No products available
+        </Text>
+      </View>
+    );
+
+  }
+
+
+  return (
+
+    <FlatList
+      data={data.slice(0, 5)}
+      horizontal
+      keyExtractor={(item) =>
+        item.id
+      }
+      showsHorizontalScrollIndicator={
+        false
+      }
+      contentContainerStyle={
+        styles.dealsProductList
+      }
+
+      renderItem={({
+        item,
+      }) => {
+
+        const price =
+          Number(item.price) || 0;
+
+        const mrp =
+          Number(
+            item.mrp ||
+            item.originalPrice ||
+            item.price
+          );
+
+        const discount =
+          mrp > price
+            ? Math.round(
+                ((mrp - price) /
+                  mrp) *
+                  100
+              )
+            : 0;
+
+        const image =
+          item.images?.[0] ||
+          item.image ||
+          "";
+
+        const rating =
+          Number(item.rating) || 4.5;
+
+        return (
+
+          <TouchableOpacity
+            activeOpacity={0.92}
+            style={
+              styles.dealProductCard
+            }
+
+            onPress={() =>
+              navigation.navigate(
+                "ProductDetails",
+                {
+                  product: item,
+                }
+              )
+            }
+          >
+
+            {/* IMAGE */}
+
+            <View
+              style={
+                styles.dealImageBox
+              }
+            >
+
+              {discount > 0 && (
+
+                <View
+                  style={
+                    styles.dealDiscountBadge
+                  }
+                >
+
+                  <Text
+                    style={
+                      styles.dealDiscountText
+                    }
+                  >
+                    {discount}% OFF
+                  </Text>
+
+                </View>
+
+              )}
+
+              {image ? (
+
+                <Image
+                  source={{
+                    uri: image,
+                  }}
+                  style={
+                    styles.dealProductImage
+                  }
+                  resizeMode="contain"
+                />
+
+              ) : (
+
+                <MaterialIcons
+                  name="image"
+                  size={48}
+                  color="#CBD5D0"
+                />
+
+              )}
+
+            </View>
+
+
+            {/* PRODUCT NAME */}
+
+            <Text
+              style={
+                styles.dealProductName
+              }
+              numberOfLines={2}
+            >
+              {item.name}
+            </Text>
+
+
+            {/* RATING */}
+
+            <View
+              style={
+                styles.dealRatingRow
+              }
+            >
+
+              <View
+                style={
+                  styles.dealRatingBadge
+                }
+              >
+
+                <Text
+                  style={
+                    styles.dealRatingText
+                  }
+                >
+                  {rating.toFixed(1)}
+                </Text>
+
+                <MaterialIcons
+                  name="star"
+                  size={11}
+                  color="#FFFFFF"
+                />
+
+              </View>
+
+              <Text
+                style={
+                  styles.dealRatingLabel
+                }
+              >
+                Ratings
+              </Text>
+
+            </View>
+
+
+            {/* PRICE */}
+
+            <View
+              style={
+                styles.dealPriceRow
+              }
+            >
+
+              <Text
+                style={
+                  styles.dealPrice
+                }
+              >
+                ₹{price.toLocaleString("en-IN")}
+              </Text>
+
+              {mrp > price && (
+
+                <Text
+                  style={
+                    styles.dealMrp
+                  }
+                >
+                  ₹{mrp.toLocaleString("en-IN")}
+                </Text>
+
+              )}
+
+            </View>
+
+
+            {discount > 0 && (
+
+              <Text
+                style={
+                  styles.dealSaveText
+                }
+              >
+                Save {discount}%
+              </Text>
+
+            )}
+
+          </TouchableOpacity>
+
+        );
+
+      }}
+    />
+
+  );
+
+}
 
   function renderSection(
     title: string,
@@ -589,16 +857,66 @@ const heroSlides = [
 
 </View>
 
-        {/* =========================
-            DEALS
-        ========================== */}
+ {/* =========================
+    DEALS FOR YOU
+========================== */}
 
-        {renderSection(
-          "Deals for You",
-          products
-        )}
+<View
+  style={
+    styles.section
+  }
+>
+
+  <View
+    style={
+      styles.sectionHeader
+    }
+  >
+
+    <Text
+      style={
+        styles.sectionTitle
+      }
+    >
+      🔥 Deals for You
+    </Text>
+
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() =>
+        navigation.navigate(
+          "Search"
+        )
+      }
+    >
+
+      <Text
+        style={
+          styles.seeAll
+        }
+      >
+        See all
+      </Text>
+
+    </TouchableOpacity>
+
+  </View>
 
 
+  {renderDealsProducts(
+    products
+  )}
+
+</View>
+
+{/* =========================
+BEST SELLERS
+========================== */}
+
+{renderSection(
+  "Best Sellers",
+  products.slice(0, 5)
+)}
         {/* =========================
             TRENDING
         ========================== */}
@@ -1227,7 +1545,133 @@ heroDot: {
     productList: {
       paddingHorizontal: 12,
     },
+/* =========================
+   DEALS PRODUCT SHELF
+========================== */
 
+dealsProductList: {
+  paddingHorizontal: 12,
+  paddingRight: 4,
+},
+
+dealProductCard: {
+  width: 168,
+  backgroundColor: "#FFFFFF",
+  borderRadius: 12,
+  marginRight: 10,
+  paddingBottom: 11,
+  overflow: "hidden",
+
+  borderWidth: 1,
+  borderColor: "#E6ECE8",
+
+  shadowColor: "#000",
+  shadowOffset: {
+    width: 0,
+    height: 2,
+  },
+  shadowOpacity: 0.06,
+  shadowRadius: 5,
+  elevation: 2,
+},
+
+dealImageBox: {
+  width: "100%",
+  height: 155,
+  backgroundColor: "#FFFFFF",
+  alignItems: "center",
+  justifyContent: "center",
+  position: "relative",
+},
+
+dealProductImage: {
+  width: "92%",
+  height: "92%",
+},
+
+dealDiscountBadge: {
+  position: "absolute",
+  left: 8,
+  top: 8,
+  zIndex: 2,
+  backgroundColor: "#E53935",
+  paddingHorizontal: 7,
+  paddingVertical: 4,
+  borderRadius: 5,
+},
+
+dealDiscountText: {
+  color: "#FFFFFF",
+  fontSize: 10,
+  fontWeight: "800",
+},
+
+dealProductName: {
+  marginHorizontal: 10,
+  marginTop: 9,
+  fontSize: 13,
+  lineHeight: 18,
+  fontWeight: "600",
+  color: "#222222",
+  minHeight: 36,
+},
+
+dealRatingRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginHorizontal: 10,
+  marginTop: 7,
+},
+
+dealRatingBadge: {
+  flexDirection: "row",
+  alignItems: "center",
+  backgroundColor: "#078A3D",
+  borderRadius: 4,
+  paddingHorizontal: 5,
+  paddingVertical: 3,
+},
+
+dealRatingText: {
+  color: "#FFFFFF",
+  fontSize: 10,
+  fontWeight: "800",
+  marginRight: 2,
+},
+
+dealRatingLabel: {
+  marginLeft: 6,
+  fontSize: 10,
+  color: "#777777",
+},
+
+dealPriceRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginHorizontal: 10,
+  marginTop: 7,
+},
+
+dealPrice: {
+  fontSize: 17,
+  fontWeight: "800",
+  color: "#111111",
+},
+
+dealMrp: {
+  marginLeft: 7,
+  fontSize: 11,
+  color: "#888888",
+  textDecorationLine: "line-through",
+},
+
+dealSaveText: {
+  marginHorizontal: 10,
+  marginTop: 4,
+  fontSize: 10,
+  fontWeight: "700",
+  color: "#078A3D",
+},
 
     loadingBox: {
       height: 150,
