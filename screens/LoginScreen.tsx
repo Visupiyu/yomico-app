@@ -11,16 +11,14 @@ import {
 
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { MaterialIcons } from "@expo/vector-icons";
 
 import { auth } from "../firebase/firebase";
 import { RootStackParamList } from "../navigation/AppNavigator";
 
 type NavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "Login"
->;
+  RootStackParamList>;
 
 export default function LoginScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -46,11 +44,34 @@ export default function LoginScreen() {
         password
       );
 
-      navigation.replace("Home");
+     navigation.replace("MainTabs", {
+  screen: "HomeTab",
+});
     } catch (error: any) {
       Alert.alert("Login Failed", error.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      Alert.alert(
+        "Email Required",
+        "Enter your email above first, then tap Forgot Password."
+      );
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+
+      Alert.alert(
+        "Reset Email Sent",
+        "Check your inbox for a link to reset your password."
+      );
+    } catch (error: any) {
+      Alert.alert("Error", error.message);
     }
   }
 
@@ -101,6 +122,14 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
       </View>
+
+      <TouchableOpacity
+        onPress={handleForgotPassword}
+      >
+        <Text style={styles.forgotPassword}>
+          Forgot Password?
+        </Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.button}
@@ -173,6 +202,15 @@ const styles = StyleSheet.create({
   passwordInput: {
     flex: 1,
     paddingVertical: 15,
+  },
+
+  forgotPassword: {
+    textAlign: "right",
+    color: "#16A34A",
+    fontWeight: "600",
+    fontSize: 13,
+    marginTop: -15,
+    marginBottom: 20,
   },
 
   button: {

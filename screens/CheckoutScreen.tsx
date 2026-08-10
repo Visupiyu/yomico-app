@@ -30,6 +30,14 @@ import {
   removeCartItem,
 } from "../services/cartService";
 
+import {
+  createNotification,
+} from "../services/notificationService";
+
+import {
+  validateCoupon,
+} from "../services/couponService";
+
 import { useNavigation } from "@react-navigation/native";
 
 import {
@@ -72,6 +80,10 @@ export default function CheckoutScreen() {
 
   const [loading, setLoading] =
     useState(false);
+
+  const [paymentMethod, setPaymentMethod] =
+    useState<"COD" | "UPI">("COD");
+
 const [gstAmount, setGstAmount] =
   useState(0);
 
@@ -81,6 +93,36 @@ const [cartItemsTotalMRP, setCartItemsTotalMRP] =
 
   const [addressLoading, setAddressLoading] =
     useState(true);
+
+  const [savedAddresses, setSavedAddresses] =
+    useState<any[]>([]);
+
+  const [selectedAddressId, setSelectedAddressId] =
+    useState<string | null>(null);
+
+  const [showAddressPicker, setShowAddressPicker] =
+    useState(false);
+
+  const DELIVERY_SLOTS = [
+    "Today, 4 PM - 8 PM",
+    "Tomorrow, 9 AM - 12 PM",
+    "Tomorrow, 4 PM - 8 PM",
+  ];
+
+  const [deliverySlot, setDeliverySlot] =
+    useState(DELIVERY_SLOTS[0]);
+
+  const [couponCode, setCouponCode] =
+    useState("");
+
+  const [appliedCoupon, setAppliedCoupon] =
+    useState<{ code: string; discountAmount: number } | null>(null);
+
+  const [couponError, setCouponError] =
+    useState("");
+
+  const [applyingCoupon, setApplyingCoupon] =
+    useState(false);
 
 
   const shipping = 50;
@@ -189,6 +231,35 @@ setCartItemsTotalMRP(
 
 }
 
+  function selectAddress(savedAddress: any) {
+
+    setSelectedAddressId(savedAddress.id);
+
+    setName(
+      savedAddress.name || ""
+    );
+
+    setMobile(
+      savedAddress.mobile || ""
+    );
+
+    setAddress(
+      savedAddress.address || ""
+    );
+
+    setCity(
+      savedAddress.city || ""
+    );
+
+    setPincode(
+      savedAddress.pincode || ""
+    );
+
+    setShowAddressPicker(false);
+
+  }
+
+
   async function loadSavedAddress() {
 
     const user =
@@ -230,29 +301,20 @@ setCartItemsTotalMRP(
         !snapshot.empty
       ) {
 
-        const savedAddress =
-          snapshot.docs[0].data();
+        const allAddresses =
+          snapshot.docs.map((item) => ({
+            id: item.id,
+            ...item.data(),
+          }));
 
-
-        setName(
-          savedAddress.name || ""
+        allAddresses.sort(
+          (a: any, b: any) =>
+            (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0)
         );
 
-        setMobile(
-          savedAddress.mobile || ""
-        );
+        setSavedAddresses(allAddresses);
 
-        setAddress(
-          savedAddress.address || ""
-        );
-
-        setCity(
-          savedAddress.city || ""
-        );
-
-        setPincode(
-          savedAddress.pincode || ""
-        );
+        selectAddress(allAddresses[0]);
 
       }
 
@@ -268,6 +330,49 @@ setCartItemsTotalMRP(
       setAddressLoading(false);
 
     }
+
+  }
+
+
+  async function applyCoupon() {
+
+    setCouponError("");
+
+    try {
+
+      setApplyingCoupon(true);
+
+      const result = await validateCoupon(
+        couponCode,
+        subtotal
+      );
+
+      setAppliedCoupon(result);
+
+    } catch (error: any) {
+
+      setAppliedCoupon(null);
+
+      setCouponError(
+        error.message || "Unable to apply coupon."
+      );
+
+    } finally {
+
+      setApplyingCoupon(false);
+
+    }
+
+  }
+
+
+  function removeCoupon() {
+
+    setAppliedCoupon(null);
+
+    setCouponCode("");
+
+    setCouponError("");
 
   }
 
@@ -331,9 +436,9 @@ setCartItemsTotalMRP(
         "Please login before placing an order."
       );
 
-      navigation.replace(
-        "Login"
-      );
+     navigation.navigate("MainTabs", {
+  screen: "LoginTab",
+});
 
       return;
 
@@ -359,10 +464,9 @@ setCartItemsTotalMRP(
           "Your cart is empty."
         );
 
-        navigation.navigate(
-          "Cart"
-        );
-
+        navigation.navigate("MainTabs", {
+  screen: "CartTab",
+});
         return;
 
       }
@@ -415,11 +519,15 @@ setGstAmount(
 
      const platformFee = 5;
 
+const discountAmount =
+  appliedCoupon?.discountAmount || 0;
+
 const total =
   subtotal +
   finalShipping +
   platformFee +
-  calculatedGst;
+  calculatedGst -
+  discountAmount;
 
       const orderData = {
 
@@ -444,6 +552,9 @@ const total =
         pincode:
           pincode.trim(),
 
+        deliverySlot:
+          deliverySlot,
+
         items:
           cartItems,
 
@@ -453,11 +564,17 @@ const total =
         shipping:
           finalShipping,
 
+        couponCode:
+          appliedCoupon?.code || null,
+
+        discountAmount:
+          discountAmount,
+
         total:
           total,
 
         paymentMethod:
-          "COD",
+          paymentMethod,
 
         paymentStatus:
           "Pending",
@@ -485,6 +602,23 @@ platformFee:
         orderData
       );
 
+      try {
+
+        await createNotification({
+          userId: user.uid,
+          title: "Order Placed",
+          message: `Your order for ₹${total.toFixed(0)} has been placed successfully.`,
+        });
+
+      } catch (notificationError) {
+
+        console.log(
+          "Order notification error:",
+          notificationError
+        );
+
+      }
+
 
       /*
        * Remove purchased items
@@ -509,8 +643,9 @@ platformFee:
           {
             text: "OK",
             onPress: () =>
-              navigation.replace(
-                "Home"
+              navigation.replace("MainTabs", {
+  screen: "HomeTab",
+}
               ),
           },
         ]
@@ -584,22 +719,94 @@ platformFee:
             style={styles.savedAddressBanner}
           >
 
-            <Text
-              style={
-                styles.savedAddressTitle
-              }
-            >
-              ✓ Saved address loaded
-            </Text>
+            <View style={styles.savedAddressRow}>
 
-            <Text
-              style={
-                styles.savedAddressText
-              }
-            >
-              Your saved delivery address
-              has been filled automatically.
-            </Text>
+              <View style={{ flex: 1 }}>
+
+                <Text
+                  style={
+                    styles.savedAddressTitle
+                  }
+                >
+                  ✓ Saved address loaded
+                </Text>
+
+                <Text
+                  style={
+                    styles.savedAddressText
+                  }
+                >
+                  Your saved delivery address
+                  has been filled automatically.
+                </Text>
+
+              </View>
+
+              {savedAddresses.length > 1 && (
+
+                <TouchableOpacity
+                  onPress={() =>
+                    setShowAddressPicker(!showAddressPicker)
+                  }
+                >
+
+                  <Text style={styles.changeAddressText}>
+                    {showAddressPicker ? "Hide" : "Change"}
+                  </Text>
+
+                </TouchableOpacity>
+
+              )}
+
+            </View>
+
+            {showAddressPicker && (
+
+              <View style={styles.addressPickerList}>
+
+                {savedAddresses.map((item) => (
+
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.addressPickerCard,
+                      selectedAddressId === item.id &&
+                        styles.addressPickerCardActive,
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => selectAddress(item)}
+                  >
+
+                    <View style={styles.addressPickerRow}>
+
+                      <Text style={styles.addressPickerName}>
+                        {item.name}
+                      </Text>
+
+                      {item.isDefault && (
+
+                        <Text style={styles.addressPickerDefault}>
+                          Default
+                        </Text>
+
+                      )}
+
+                    </View>
+
+                    <Text
+                      style={styles.addressPickerText}
+                      numberOfLines={1}
+                    >
+                      {item.address}, {item.city} {item.pincode}
+                    </Text>
+
+                  </TouchableOpacity>
+
+                ))}
+
+              </View>
+
+            )}
 
           </View>
 
@@ -712,6 +919,59 @@ platformFee:
         </View>
 
 
+        {/* DELIVERY SLOT */}
+
+        <View style={styles.paymentCard}>
+
+          <Text style={styles.sectionTitle}>
+            Delivery Slot
+          </Text>
+
+          <View style={styles.slotRow}>
+
+            {DELIVERY_SLOTS.map((slot) => (
+
+              <TouchableOpacity
+                key={slot}
+                style={[
+                  styles.slotChip,
+                  deliverySlot === slot && styles.slotChipActive,
+                ]}
+                activeOpacity={0.8}
+                onPress={() => setDeliverySlot(slot)}
+              >
+
+                <Text
+                  style={[
+                    styles.slotChipText,
+                    deliverySlot === slot && styles.slotChipTextActive,
+                  ]}
+                >
+                  {slot}
+                </Text>
+
+              </TouchableOpacity>
+
+            ))}
+
+          </View>
+
+        </View>
+
+
+        {/* BANK OFFER */}
+
+        <View style={styles.bankOfferBanner}>
+
+          <Text style={styles.bankOfferIcon}>💳</Text>
+
+          <Text style={styles.bankOfferText}>
+            Get 10% instant discount up to ₹150 on YOMICO Bank Card EMI transactions. T&C apply.
+          </Text>
+
+        </View>
+
+
         {/* PAYMENT */}
 
         <View
@@ -725,12 +985,24 @@ platformFee:
           </Text>
 
 
-          <View
-            style={styles.codRow}
+          <TouchableOpacity
+            style={[
+              styles.codRow,
+              paymentMethod !== "COD" &&
+                styles.codRowInactive,
+            ]}
+            activeOpacity={0.8}
+            onPress={() =>
+              setPaymentMethod("COD")
+            }
           >
 
             <View
-              style={styles.radio}
+              style={
+                paymentMethod === "COD"
+                  ? styles.radio
+                  : styles.radioOutline
+              }
             />
 
 
@@ -753,9 +1025,133 @@ platformFee:
 
             </View>
 
-          </View>
+          </TouchableOpacity>
+
+
+          <TouchableOpacity
+            style={[
+              styles.codRow,
+              styles.upiRow,
+              paymentMethod !== "UPI" &&
+                styles.codRowInactive,
+            ]}
+            activeOpacity={0.8}
+            onPress={() =>
+              setPaymentMethod("UPI")
+            }
+          >
+
+            <View
+              style={
+                paymentMethod === "UPI"
+                  ? styles.radio
+                  : styles.radioOutline
+              }
+            />
+
+
+            <View
+              style={styles.codTextContainer}
+            >
+
+              <Text
+                style={styles.codTitle}
+              >
+                UPI on Delivery
+              </Text>
+
+
+              <Text
+                style={styles.codSubtitle}
+              >
+                Pay via UPI when your order arrives
+              </Text>
+
+            </View>
+
+          </TouchableOpacity>
 
         </View>
+
+
+       {/* COUPON */}
+
+<View style={styles.paymentCard}>
+
+  <Text style={styles.sectionTitle}>
+    Coupon
+  </Text>
+
+  {appliedCoupon ? (
+
+    <View style={styles.couponAppliedRow}>
+
+      <View style={{ flex: 1 }}>
+
+        <Text style={styles.couponAppliedCode}>
+          {appliedCoupon.code} applied
+        </Text>
+
+        <Text style={styles.couponAppliedText}>
+          You saved ₹{appliedCoupon.discountAmount.toFixed(0)}
+        </Text>
+
+      </View>
+
+      <TouchableOpacity onPress={removeCoupon}>
+
+        <Text style={styles.couponRemoveText}>
+          Remove
+        </Text>
+
+      </TouchableOpacity>
+
+    </View>
+
+  ) : (
+
+    <>
+
+      <View style={styles.couponRow}>
+
+        <TextInput
+          allowFontScaling={false}
+          placeholder="Enter coupon code"
+          placeholderTextColor="#999"
+          style={styles.couponInput}
+          value={couponCode}
+          onChangeText={setCouponCode}
+          autoCapitalize="characters"
+        />
+
+        <TouchableOpacity
+          style={styles.couponApplyButton}
+          activeOpacity={0.8}
+          disabled={applyingCoupon}
+          onPress={applyCoupon}
+        >
+
+          <Text style={styles.couponApplyText}>
+            {applyingCoupon ? "..." : "Apply"}
+          </Text>
+
+        </TouchableOpacity>
+
+      </View>
+
+      {!!couponError && (
+
+        <Text style={styles.couponError}>
+          {couponError}
+        </Text>
+
+      )}
+
+    </>
+
+  )}
+
+</View>
 
 
        {/* BILL DETAILS */}
@@ -906,6 +1302,31 @@ platformFee:
   </View>
 
 
+  {/* COUPON DISCOUNT */}
+
+  {appliedCoupon && (
+
+    <View
+      style={styles.summaryRow}
+    >
+
+      <Text
+        style={styles.summaryLabel}
+      >
+        Coupon discount ({appliedCoupon.code})
+      </Text>
+
+      <Text
+        style={styles.discountValue}
+      >
+        -₹{appliedCoupon.discountAmount.toFixed(0)}
+      </Text>
+
+    </View>
+
+  )}
+
+
   {/* DIVIDER */}
 
   <View
@@ -934,7 +1355,8 @@ platformFee:
         subtotal +
         shippingAmount +
         platformFee +
-        gstAmount
+        gstAmount -
+        (appliedCoupon?.discountAmount || 0)
       ).toFixed(0)}
     </Text>
 
@@ -1016,7 +1438,7 @@ platformFee:
           >
             {loading
               ? "Placing Order..."
-              : "Place Order • COD"}
+              : `Place Order • ${paymentMethod}`}
           </Text>
 
         </TouchableOpacity>
@@ -1092,6 +1514,214 @@ const styles =
     },
 
 
+    savedAddressRow: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+
+
+    changeAddressText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#16A34A",
+      marginLeft: 10,
+    },
+
+
+    addressPickerList: {
+      marginTop: 10,
+    },
+
+
+    addressPickerCard: {
+      borderWidth: 1,
+      borderColor: "#E2E8E4",
+      borderRadius: 8,
+      padding: 9,
+      marginBottom: 7,
+      backgroundColor: "#FFFFFF",
+    },
+
+
+    addressPickerCardActive: {
+      borderColor: "#16A34A",
+      backgroundColor: "#F3FFF6",
+    },
+
+
+    addressPickerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+
+
+    addressPickerName: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#222222",
+    },
+
+
+    addressPickerDefault: {
+      fontSize: 9,
+      fontWeight: "700",
+      color: "#16A34A",
+      backgroundColor: "#E9FFF1",
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+
+
+    addressPickerText: {
+      fontSize: 11,
+      color: "#777777",
+      marginTop: 3,
+    },
+
+
+    slotRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+    },
+
+
+    slotChip: {
+      borderWidth: 1,
+      borderColor: "#DDDDDD",
+      borderRadius: 16,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginRight: 8,
+      marginBottom: 8,
+    },
+
+
+    slotChipActive: {
+      backgroundColor: "#16A34A",
+      borderColor: "#16A34A",
+    },
+
+
+    slotChipText: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: "#555555",
+    },
+
+
+    slotChipTextActive: {
+      color: "#FFFFFF",
+    },
+
+
+    bankOfferBanner: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      backgroundColor: "#F1F7FF",
+      marginHorizontal: 0,
+      marginTop: 7,
+      padding: 12,
+    },
+
+
+    bankOfferIcon: {
+      fontSize: 16,
+      marginRight: 8,
+    },
+
+
+    bankOfferText: {
+      flex: 1,
+      fontSize: 11,
+      color: "#333333",
+      lineHeight: 16,
+    },
+
+
+    couponRow: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+
+
+    couponInput: {
+      flex: 1,
+      height: 42,
+      borderWidth: 1,
+      borderColor: "#DDDDDD",
+      borderRadius: 8,
+      paddingHorizontal: 11,
+      fontSize: 13,
+      color: "#222222",
+      marginRight: 8,
+    },
+
+
+    couponApplyButton: {
+      height: 42,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      backgroundColor: "#16A34A",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+
+    couponApplyText: {
+      color: "#FFFFFF",
+      fontSize: 13,
+      fontWeight: "700",
+    },
+
+
+    couponError: {
+      marginTop: 6,
+      fontSize: 11,
+      color: "#DC2626",
+    },
+
+
+    couponAppliedRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#F3FFF6",
+      borderWidth: 1,
+      borderColor: "#16A34A",
+      borderRadius: 8,
+      padding: 10,
+    },
+
+
+    couponAppliedCode: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#16A34A",
+    },
+
+
+    couponAppliedText: {
+      fontSize: 11,
+      color: "#555555",
+      marginTop: 2,
+    },
+
+
+    couponRemoveText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#DC2626",
+    },
+
+
+    discountValue: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#16A34A",
+    },
+
+
     form: {
       backgroundColor: "#FFFFFF",
       marginTop: 7,
@@ -1161,6 +1791,27 @@ const styles =
       backgroundColor: "#16A34A",
       borderWidth: 4,
       borderColor: "#FFFFFF",
+    },
+
+
+    radioOutline: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: "#FFFFFF",
+      borderWidth: 1,
+      borderColor: "#BBBBBB",
+    },
+
+
+    codRowInactive: {
+      borderColor: "#E2E8E4",
+      backgroundColor: "#FFFFFF",
+    },
+
+
+    upiRow: {
+      marginTop: 10,
     },
 
 

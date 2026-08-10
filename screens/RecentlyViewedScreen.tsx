@@ -527,17 +527,20 @@ export default function RecentlyViewedScreen() {
           </Text>
 
 
-          <TouchableOpacity
-            style={
-              styles.shopButton
-            }
-            activeOpacity={0.8}
-            onPress={() =>
-              navigation.navigate(
-                "Home"
-              )
-            }
-          >
+         <TouchableOpacity
+  style={
+    styles.shopButton
+  }
+  activeOpacity={0.8}
+  onPress={() =>
+    navigation.navigate(
+      "MainTabs",
+      {
+        screen: "HomeTab",
+      }
+    )
+  }
+>
 
             <Text
               style={

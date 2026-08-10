@@ -1,22 +1,30 @@
 import { NavigatorScreenParams } from "@react-navigation/native";
 
-/**
- * Routes that live INSIDE the bottom tab bar.
- * These names must NOT be repeated in RootStackParamList.
- */
+/* =========================
+   BOTTOM TAB ROUTES
+========================= */
+
 export type TabParamList = {
   HomeTab: undefined;
+  LoginTab: undefined;
   CartTab: undefined;
-  WishlistTab: undefined;
   ProfileTab: undefined;
+
+  // Kept for existing ProfileScreen navigation.
+  // It is not displayed in the bottom bar.
+  WishlistTab: undefined;
 };
 
+
+/* =========================
+   ROOT STACK ROUTES
+========================= */
+
 export type RootStackParamList = {
-  Splash: undefined;
 
-  MainTabs: NavigatorScreenParams<TabParamList> | undefined;
+  MainTabs:
+    NavigatorScreenParams<TabParamList>;
 
-  Login: undefined;
   Register: undefined;
 
   ProductDetails: {
@@ -32,6 +40,8 @@ export type RootStackParamList = {
   };
 
   EditProfile: undefined;
+
+  Wishlist: undefined;
 
   Address: undefined;
 

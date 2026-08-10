@@ -265,3 +265,92 @@ export async function saveRecentlyViewed(
   }
 
 }
+
+
+/*
+  Fetch the current user's Recently Viewed
+  products, newest first, shaped for ProductCard.
+*/
+
+export async function getRecentlyViewed(
+  limitCount: number = 8
+) {
+
+  try {
+
+    const user =
+      auth.currentUser;
+
+    if (!user) {
+      return [];
+    }
+
+    const recentlyViewedQuery =
+      query(
+        collection(
+          db,
+          "recentlyViewed"
+        ),
+        where(
+          "userId",
+          "==",
+          user.uid
+        )
+      );
+
+    const snapshot =
+      await getDocs(
+        recentlyViewedQuery
+      );
+
+    const items =
+      snapshot.docs.map(
+        (item) => ({
+          id: item.id,
+          ...item.data(),
+        })
+      ) as any[];
+
+    items.sort(
+      (a, b) => {
+
+        const dateA =
+          a.viewedAt
+            ?.toDate?.()
+            ?.getTime?.() || 0;
+
+        const dateB =
+          b.viewedAt
+            ?.toDate?.()
+            ?.getTime?.() || 0;
+
+        return dateB - dateA;
+
+      }
+    );
+
+    return items
+      .slice(0, limitCount)
+      .map((item) => ({
+        id: item.productId,
+        name: item.name,
+        price: item.price,
+        mrp: item.mrp,
+        image: item.image,
+        discountPercent: item.discountPercent,
+        vendorId: item.vendorId,
+        vendorName: item.vendorName,
+      }));
+
+  } catch (error) {
+
+    console.log(
+      "Recently Viewed Fetch Error:",
+      error
+    );
+
+    return [];
+
+  }
+
+}

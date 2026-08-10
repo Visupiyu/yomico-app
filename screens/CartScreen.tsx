@@ -15,6 +15,8 @@ import {
   getCartItems,
   updateCartQuantity,
   removeCartItem,
+  moveToSavedForLater,
+  moveToCart,
 } from "../services/cartService";
 
 import { MaterialIcons } from "@expo/vector-icons";
@@ -113,8 +115,37 @@ export default function CartScreen() {
   }
 
 
+  async function saveForLater(
+    item: any
+  ) {
+
+    await moveToSavedForLater(item.id);
+
+    loadCart();
+
+  }
+
+
+  async function moveBackToCart(
+    item: any
+  ) {
+
+    await moveToCart(item.id);
+
+    loadCart();
+
+  }
+
+
+  const activeItems =
+    cartItems.filter((item) => !item.savedForLater);
+
+  const savedItems =
+    cartItems.filter((item) => item.savedForLater);
+
+
   const subtotal =
-    cartItems.reduce(
+    activeItems.reduce(
       (sum, item) =>
         sum +
         item.price *
@@ -148,7 +179,7 @@ export default function CartScreen() {
 
       <FlatList
 
-        data={cartItems}
+        data={activeItems}
 
         keyExtractor={(item) =>
           item.id
@@ -242,19 +273,37 @@ export default function CartScreen() {
               </View>
 
 
-              <TouchableOpacity
-                onPress={() =>
-                  remove(item)
-                }
-              >
+              <View style={styles.itemActionsRow}>
 
-                <Text
-                  style={styles.remove}
+                <TouchableOpacity
+                  onPress={() =>
+                    remove(item)
+                  }
                 >
-                  Remove
-                </Text>
 
-              </TouchableOpacity>
+                  <Text
+                    style={styles.remove}
+                  >
+                    Remove
+                  </Text>
+
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() =>
+                    saveForLater(item)
+                  }
+                >
+
+                  <Text
+                    style={styles.saveForLater}
+                  >
+                    Save for later
+                  </Text>
+
+                </TouchableOpacity>
+
+              </View>
 
             </View>
 
@@ -262,92 +311,195 @@ export default function CartScreen() {
 
         )}
 
+        ListEmptyComponent={
+
+          <View style={styles.emptyBox}>
+
+            <Text style={styles.emptyText}>
+              Your cart is empty.
+            </Text>
+
+          </View>
+
+        }
+
 
         ListFooterComponent={
 
-          <View
-            style={styles.summary}
-          >
+          <View>
 
-            <View
-              style={styles.summaryRow}
-            >
+            {activeItems.length > 0 && (
 
-              <Text
-                style={styles.summaryLabel}
+              <View
+                style={styles.summary}
               >
-                Subtotal
-              </Text>
 
-              <Text
-                style={styles.summaryValue}
-              >
-                ₹{subtotal}
-              </Text>
+                <View
+                  style={styles.summaryRow}
+                >
 
-            </View>
+                  <Text
+                    style={styles.summaryLabel}
+                  >
+                    Subtotal
+                  </Text>
 
+                  <Text
+                    style={styles.summaryValue}
+                  >
+                    ₹{subtotal}
+                  </Text>
 
-            <View
-              style={styles.summaryRow}
-            >
-
-              <Text
-                style={styles.summaryLabel}
-              >
-                Shipping
-              </Text>
-
-              <Text
-                style={styles.summaryValue}
-              >
-                ₹{shipping}
-              </Text>
-
-            </View>
+                </View>
 
 
-            <View
-              style={styles.totalRow}
-            >
+                <View
+                  style={styles.summaryRow}
+                >
 
-              <Text
-                style={styles.totalLabel}
-              >
-                Total
-              </Text>
+                  <Text
+                    style={styles.summaryLabel}
+                  >
+                    Shipping
+                  </Text>
 
-              <Text
-                style={styles.total}
-              >
-                ₹{total}
-              </Text>
+                  <Text
+                    style={styles.summaryValue}
+                  >
+                    ₹{shipping}
+                  </Text>
 
-            </View>
+                </View>
 
 
-            <TouchableOpacity
-              style={
-                styles.checkoutButton
-              }
-              onPress={() =>
-                navigation.navigate(
-                  "Checkout"
-                )
-              }
-            >
+                <View
+                  style={styles.totalRow}
+                >
 
-              <Text
-                style={
-                  styles.checkoutText
-                }
-              >
-                Proceed To Checkout
-              </Text>
+                  <Text
+                    style={styles.totalLabel}
+                  >
+                    Total
+                  </Text>
 
-            </TouchableOpacity>
+                  <Text
+                    style={styles.total}
+                  >
+                    ₹{total}
+                  </Text>
+
+                </View>
+
+
+                <TouchableOpacity
+                  style={
+                    styles.checkoutButton
+                  }
+                  onPress={() =>
+                    navigation.navigate(
+                      "Checkout"
+                    )
+                  }
+                >
+
+                  <Text
+                    style={
+                      styles.checkoutText
+                    }
+                  >
+                    Proceed To Checkout
+                  </Text>
+
+                </TouchableOpacity>
+
+              </View>
+
+            )}
+
+
+            {savedItems.length > 0 && (
+
+              <View style={styles.savedSection}>
+
+                <Text style={styles.savedTitle}>
+                  Saved for Later ({savedItems.length})
+                </Text>
+
+                {savedItems.map((item) => (
+
+                  <View
+                    key={item.id}
+                    style={styles.card}
+                  >
+
+                    <Image
+                      source={{
+                        uri: item.image,
+                      }}
+                      style={styles.image}
+                    />
+
+                    <View
+                      style={styles.info}
+                    >
+
+                      <Text
+                        numberOfLines={2}
+                        style={styles.name}
+                      >
+                        {item.name}
+                      </Text>
+
+                      <Text
+                        style={styles.price}
+                      >
+                        ₹{item.price}
+                      </Text>
+
+                      <View style={styles.itemActionsRow}>
+
+                        <TouchableOpacity
+                          onPress={() =>
+                            remove(item)
+                          }
+                        >
+
+                          <Text
+                            style={styles.remove}
+                          >
+                            Remove
+                          </Text>
+
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() =>
+                            moveBackToCart(item)
+                          }
+                        >
+
+                          <Text
+                            style={styles.moveToCart}
+                          >
+                            Move to Cart
+                          </Text>
+
+                        </TouchableOpacity>
+
+                      </View>
+
+                    </View>
+
+                  </View>
+
+                ))}
+
+              </View>
+
+            )}
 
           </View>
+
         }
 
       />
@@ -451,11 +603,46 @@ const styles =
     },
 
 
+    itemActionsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 6,
+    },
+
+
     remove: {
       color: "#E53935",
-      marginTop: 6,
       fontSize: 11,
       fontWeight: "600",
+    },
+
+
+    saveForLater: {
+      color: "#16A34A",
+      fontSize: 11,
+      fontWeight: "600",
+      marginLeft: 16,
+    },
+
+
+    moveToCart: {
+      color: "#16A34A",
+      fontSize: 11,
+      fontWeight: "600",
+      marginLeft: 16,
+    },
+
+
+    emptyBox: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingTop: 60,
+    },
+
+
+    emptyText: {
+      fontSize: 13,
+      color: "#777777",
     },
 
 
@@ -528,6 +715,23 @@ const styles =
       color: "#FFFFFF",
       fontWeight: "800",
       fontSize: 15,
+    },
+
+
+    savedSection: {
+      marginTop: 8,
+      borderTopWidth: 8,
+      borderTopColor: "#F5F5F5",
+      paddingBottom: 20,
+    },
+
+
+    savedTitle: {
+      fontSize: 15,
+      fontWeight: "800",
+      color: "#222",
+      paddingHorizontal: 14,
+      paddingVertical: 12,
     },
 
   });

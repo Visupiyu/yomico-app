@@ -144,6 +144,21 @@ export default function EditProfileScreen() {
     }
 
 
+    if (
+      mobile.trim() &&
+      mobile.trim().length < 10
+    ) {
+
+      Alert.alert(
+        "Invalid Mobile",
+        "Please enter a valid mobile number."
+      );
+
+      return;
+
+    }
+
+
     try {
 
       setSaving(true);

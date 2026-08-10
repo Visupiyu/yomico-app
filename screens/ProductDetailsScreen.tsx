@@ -41,6 +41,10 @@ import {
   saveRecentlyViewed,
 } from "../services/recentlyViewedService";
 import {
+  getProductsByCategory,
+} from "../services/productService";
+import ProductCard from "../components/ProductCard";
+import {
   NativeStackNavigationProp,
 } from "@react-navigation/native-stack";
 
@@ -79,6 +83,29 @@ const [averageRating, setAverageRating] =
 
 const [reviewCount, setReviewCount] =
   useState(0);
+
+const [selectedVariants, setSelectedVariants] =
+  useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+
+    if (Array.isArray(product.variants)) {
+      product.variants.forEach((variant: any) => {
+        if (variant.options?.length > 0) {
+          initial[variant.label] = variant.options[0];
+        }
+      });
+    }
+
+    return initial;
+  });
+
+const [similarProducts, setSimilarProducts] =
+  useState<any[]>([]);
+
+const stock = Number(product.stock ?? 1);
+const isOutOfStock = product.stock !== undefined && stock <= 0;
+const isLowStock = product.stock !== undefined && stock > 0 && stock < 5;
+
   const navigation =
   useNavigation<
     NativeStackNavigationProp<
@@ -91,6 +118,32 @@ saveRecentlyViewed(
     product
   );
   loadReviews();
+  loadSimilarProducts();
+
+  async function loadSimilarProducts() {
+
+    if (!product.category) return;
+
+    try {
+
+      const data =
+        await getProductsByCategory(product.category);
+
+      setSimilarProducts(
+        data.filter((item: any) => item.id !== product.id).slice(0, 8)
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Similar products error:",
+        error
+      );
+
+    }
+
+  }
+
   async function loadReviews() {
 
   try {
@@ -170,7 +223,80 @@ saveRecentlyViewed(
 }
 
 }, []);
+  function getDeliveryEstimate() {
+
+    const minDate = new Date();
+    minDate.setDate(minDate.getDate() + 4);
+
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 6);
+
+    const format = (date: Date) =>
+      date.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+      });
+
+    return `Delivery by ${format(minDate)} - ${format(maxDate)}`;
+
+  }
+
+
+  async function handleBuyNow() {
+
+    if (isOutOfStock) {
+      return;
+    }
+
+    if (!auth.currentUser) {
+
+      Alert.alert(
+        "Login Required",
+        "Please login to buy this product."
+      );
+
+      return;
+
+    }
+
+    try {
+
+      await addToCart(product);
+
+      navigation.navigate("Checkout");
+
+    } catch (error) {
+
+      console.log(
+        "Buy Now error:",
+        error
+      );
+
+      Alert.alert(
+        "Error",
+        "Unable to proceed to checkout."
+      );
+
+    }
+
+  }
+
   async function handleAddToCart() {
+
+    if (isOutOfStock) {
+      return;
+    }
+
+    if (!auth.currentUser) {
+
+      Alert.alert(
+        "Login Required",
+        "Please login to add products to your cart."
+      );
+
+      return;
+
+    }
 
     try {
 
@@ -692,11 +818,98 @@ saveRecentlyViewed(
           </View>
 
 
-          <Text
-            style={styles.stock}
-          >
-            Stock : {product.stock}
-          </Text>
+          {/* VARIANTS */}
+
+          {Array.isArray(product.variants) &&
+            product.variants.length > 0 && (
+
+            <View style={styles.variantsSection}>
+
+              {product.variants.map((variant: any) => (
+
+                <View
+                  key={variant.label}
+                  style={styles.variantGroup}
+                >
+
+                  <Text style={styles.variantLabel}>
+                    {variant.label}: {selectedVariants[variant.label]}
+                  </Text>
+
+                  <View style={styles.variantOptionsRow}>
+
+                    {variant.options.map((option: string) => (
+
+                      <TouchableOpacity
+                        key={option}
+                        style={[
+                          styles.variantOption,
+                          selectedVariants[variant.label] === option &&
+                            styles.variantOptionActive,
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() =>
+                          setSelectedVariants((current) => ({
+                            ...current,
+                            [variant.label]: option,
+                          }))
+                        }
+                      >
+
+                        <Text
+                          style={[
+                            styles.variantOptionText,
+                            selectedVariants[variant.label] === option &&
+                              styles.variantOptionTextActive,
+                          ]}
+                        >
+                          {option}
+                        </Text>
+
+                      </TouchableOpacity>
+
+                    ))}
+
+                  </View>
+
+                </View>
+
+              ))}
+
+            </View>
+
+          )}
+
+
+          {isOutOfStock ? (
+
+            <Text style={styles.outOfStock}>
+              Out of Stock
+            </Text>
+
+          ) : (
+
+            <>
+
+              <Text
+                style={styles.stock}
+              >
+                {product.stock !== undefined
+                  ? `Stock : ${product.stock}`
+                  : "In Stock"}
+              </Text>
+
+              {isLowStock && (
+
+                <Text style={styles.lowStock}>
+                  Only {product.stock} left — order soon
+                </Text>
+
+              )}
+
+            </>
+
+          )}
 
 
           <Text
@@ -706,6 +919,21 @@ saveRecentlyViewed(
             {product.vendorName ||
               "YOMICO Seller"}
           </Text>
+
+
+          <View style={styles.deliveryEstimateRow}>
+
+            <MaterialIcons
+              name="local-shipping"
+              size={16}
+              color="#16A34A"
+            />
+
+            <Text style={styles.deliveryEstimateText}>
+              {getDeliveryEstimate()}
+            </Text>
+
+          </View>
 
 
           <Text
@@ -720,6 +948,50 @@ saveRecentlyViewed(
     <Text style={styles.heading}>
       Customer Reviews
     </Text>
+
+
+    <View style={styles.ratingBreakdown}>
+
+      {[5, 4, 3, 2, 1].map((star) => {
+
+        const count = reviews.filter(
+          (item: any) => Math.round(Number(item.rating || 0)) === star
+        ).length;
+
+        const percent = reviews.length > 0
+          ? (count / reviews.length) * 100
+          : 0;
+
+        return (
+
+          <View key={star} style={styles.ratingBarRow}>
+
+            <Text style={styles.ratingBarLabel}>
+              {star}★
+            </Text>
+
+            <View style={styles.ratingBarTrack}>
+
+              <View
+                style={[
+                  styles.ratingBarFill,
+                  { width: `${percent}%` },
+                ]}
+              />
+
+            </View>
+
+            <Text style={styles.ratingBarCount}>
+              {count}
+            </Text>
+
+          </View>
+
+        );
+
+      })}
+
+    </View>
 
 
     {reviews.map(
@@ -760,6 +1032,30 @@ saveRecentlyViewed(
           >
             {item.review}
           </Text>
+
+
+          {Array.isArray(item.photos) && item.photos.length > 0 && (
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.reviewPhotosRow}
+            >
+
+              {item.photos.map((photoUrl: string, photoIndex: number) => (
+
+                <Image
+                  key={photoIndex}
+                  source={{ uri: photoUrl }}
+                  style={styles.reviewPhoto}
+                  resizeMode="cover"
+                />
+
+              ))}
+
+            </ScrollView>
+
+          )}
 
 
           <Text
@@ -817,11 +1113,15 @@ saveRecentlyViewed(
           {/* CART */}
 
           <TouchableOpacity
-            style={styles.cartButton}
+            style={[
+              styles.cartButton,
+              isOutOfStock && styles.disabledButton,
+            ]}
             onPress={
               handleAddToCart
             }
             activeOpacity={0.8}
+            disabled={isOutOfStock}
           >
 
             <MaterialIcons
@@ -842,8 +1142,15 @@ saveRecentlyViewed(
           {/* BUY NOW */}
 
           <TouchableOpacity
-            style={styles.buyButton}
+            style={[
+              styles.buyButton,
+              isOutOfStock && styles.disabledButton,
+            ]}
             activeOpacity={0.8}
+            onPress={
+              handleBuyNow
+            }
+            disabled={isOutOfStock}
           >
 
             <Text
@@ -855,6 +1162,33 @@ saveRecentlyViewed(
           </TouchableOpacity>
 
         </View>
+
+
+        {/* SIMILAR PRODUCTS */}
+
+        {similarProducts.length > 0 && (
+
+          <View style={styles.similarSection}>
+
+            <Text style={styles.heading}>
+              You May Also Like
+            </Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.similarList}
+            >
+
+              {similarProducts.map((item: any) => (
+                <ProductCard key={item.id} product={item} />
+              ))}
+
+            </ScrollView>
+
+          </View>
+
+        )}
 
       </ScrollView>
 
@@ -1051,6 +1385,144 @@ reviewCount: {
       fontSize: 12,
       color: "#16A34A",
       fontWeight: "600",
+    },
+
+    outOfStock: {
+      marginTop: 10,
+      fontSize: 13,
+      color: "#DC2626",
+      fontWeight: "800",
+    },
+
+    lowStock: {
+      marginTop: 4,
+      fontSize: 11,
+      color: "#EA580C",
+      fontWeight: "700",
+    },
+
+    deliveryEstimateRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 8,
+    },
+
+    deliveryEstimateText: {
+      marginLeft: 6,
+      fontSize: 12,
+      color: "#333333",
+      fontWeight: "600",
+    },
+
+    variantsSection: {
+      marginTop: 14,
+    },
+
+    variantGroup: {
+      marginBottom: 12,
+    },
+
+    variantLabel: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#333333",
+      marginBottom: 7,
+    },
+
+    variantOptionsRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+    },
+
+    variantOption: {
+      borderWidth: 1,
+      borderColor: "#DDDDDD",
+      borderRadius: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      marginRight: 8,
+      marginBottom: 8,
+    },
+
+    variantOptionActive: {
+      borderColor: "#16A34A",
+      backgroundColor: "#F3FFF6",
+    },
+
+    variantOptionText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: "#555555",
+    },
+
+    variantOptionTextActive: {
+      color: "#16A34A",
+    },
+
+    ratingBreakdown: {
+      marginTop: 4,
+      marginBottom: 10,
+    },
+
+    ratingBarRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 5,
+    },
+
+    ratingBarLabel: {
+      width: 26,
+      fontSize: 11,
+      color: "#555555",
+      fontWeight: "600",
+    },
+
+    ratingBarTrack: {
+      flex: 1,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: "#EEEEEE",
+      marginHorizontal: 8,
+      overflow: "hidden",
+    },
+
+    ratingBarFill: {
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: "#FFB000",
+    },
+
+    ratingBarCount: {
+      width: 20,
+      fontSize: 11,
+      color: "#777777",
+      textAlign: "right",
+    },
+
+    reviewPhotosRow: {
+      marginTop: 8,
+    },
+
+    reviewPhoto: {
+      width: 64,
+      height: 64,
+      borderRadius: 8,
+      marginRight: 8,
+      backgroundColor: "#F5F5F5",
+    },
+
+    disabledButton: {
+      opacity: 0.5,
+    },
+
+    similarSection: {
+      marginTop: 22,
+      paddingLeft: 14,
+    },
+
+    similarList: {
+      paddingRight: 14,
+      paddingTop: 4,
     },
 
 

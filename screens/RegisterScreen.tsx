@@ -47,6 +47,11 @@ export default function RegisterScreen() {
     return;
   }
 
+  if (password !== confirmPassword) {
+    Alert.alert("Error", "Passwords do not match.");
+    return;
+  }
+
   try {
 
   console.log("Starting Firebase Registration...");
@@ -78,7 +83,9 @@ export default function RegisterScreen() {
     "Account created successfully!"
   );
 
-  navigation.replace("Login");
+ navigation.navigate("MainTabs", {
+  screen: "LoginTab",
+});
 
 } catch (error: any) {
 

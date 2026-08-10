@@ -15,14 +15,27 @@ import {
   TextInput,
   FlatList,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 
 import { MaterialIcons } from "@expo/vector-icons";
 import { getProducts } from "../services/productService";
+import { getRecentlyViewed } from "../services/recentlyViewedService";
 import ProductCard from "../components/ProductCard";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/AppNavigator";
+import { RootStackParamList } from "../navigation/types"
+
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+
+import { auth, db } from "../firebase/firebase";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "MainTabs">;
 
@@ -32,18 +45,111 @@ export default function HomeScreen() {
   const [heroIndex, setHeroIndex] = useState(0);
 
   const heroSlides = [
-    require("../assets/home/hero-smartphones.png"),
-    require("../assets/home/hero-big-deals.png"),
-    require("../assets/home/hero-home-appliances.png"),
-    require("../assets/home/hero-fashion.png"),
+    {
+      image: require("../assets/home/hero-smartphones.png"),
+      category: "Mobiles",
+    },
+    {
+      image: require("../assets/home/hero-big-deals.png"),
+      category: null,
+    },
+    {
+      image: require("../assets/home/hero-home-appliances.png"),
+      category: null,
+    },
+    {
+      image: require("../assets/home/hero-fashion.png"),
+      category: "Fashion",
+    },
   ];
 
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [defaultAddress, setDefaultAddress] = useState<any>(null);
+
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+
+  const [recentlyViewedProducts, setRecentlyViewedProducts] = useState<any[]>([]);
+
+  const [countdown, setCountdown] = useState("");
+
   useEffect(() => {
     loadProducts();
+    loadDefaultAddress();
+    loadRecentlyViewed();
   }, []);
+
+  useEffect(() => {
+    function updateCountdown() {
+      const now = new Date();
+      const endOfDay = new Date(now);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const diff = endOfDay.getTime() - now.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      setCountdown(
+        `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+      );
+    }
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  async function loadRecentlyViewed() {
+    const data = await getRecentlyViewed(8);
+    setRecentlyViewedProducts(data);
+  }
+
+  async function loadDefaultAddress() {
+    const user = auth.currentUser;
+
+    if (!user) return;
+
+    try {
+      const q = query(
+        collection(db, "addresses"),
+        where("userId", "==", user.uid),
+        where("isDefault", "==", true)
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        setDefaultAddress(snapshot.docs[0].data());
+      }
+    } catch (error) {
+      console.log("Default address loading error:", error);
+    }
+  }
+
+  async function handleSubscribe() {
+    const email = newsletterEmail.trim();
+
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      Alert.alert("Invalid Email", "Please enter a valid email address.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "newsletterSubscribers"), {
+        email,
+        createdAt: serverTimestamp(),
+      });
+
+      Alert.alert("Subscribed", "Thanks for subscribing!");
+      setNewsletterEmail("");
+    } catch (error) {
+      console.log("Newsletter subscribe error:", error);
+      Alert.alert("Error", "Unable to subscribe right now.");
+    }
+  }
 
   async function loadProducts() {
     try {
@@ -69,9 +175,12 @@ export default function HomeScreen() {
 
   const trendingProducts = products.slice(0, 8);
   const bestSellerProducts = [...products]
-    .sort((a, b) => (b.sales || 0) - (a.sales || 0))
+    .sort(
+      (a, b) =>
+        (Number(b.rating || b.averageRating) || 0) -
+        (Number(a.rating || a.averageRating) || 0)
+    )
     .slice(0, 8);
-  const recentlyViewedProducts = products.slice(0, 8);
 
   // ========== SHARED RENDER ==========
   function renderProducts(data: any[]) {
@@ -161,6 +270,8 @@ export default function HomeScreen() {
                 const dealText = dealLabels[productIndex % dealLabels.length];
 
                 return (
+                 
+ 
                   <TouchableOpacity
                     key={product.id || `${index}-${productIndex}`}
                     activeOpacity={0.9}
@@ -339,12 +450,18 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* DELIVERY LOCATION */}
-        <TouchableOpacity activeOpacity={0.8} style={styles.deliveryBar}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.deliveryBar}
+          onPress={() => navigation.navigate("Address")}
+        >
           <MaterialIcons name="location-on" size={21} color="#16A34A" />
           <View style={styles.deliveryContent}>
             <Text style={styles.deliveryLabel}>Deliver to</Text>
             <Text style={styles.deliveryAddress} numberOfLines={1}>
-              Select your delivery location
+              {defaultAddress
+                ? `${defaultAddress.address}, ${defaultAddress.city} ${defaultAddress.pincode}`
+                : "Select your delivery location"}
             </Text>
           </View>
           <MaterialIcons name="keyboard-arrow-right" size={22} color="#555" />
@@ -402,15 +519,19 @@ export default function HomeScreen() {
               setHeroIndex(index);
             }}
           >
-            {heroSlides.map((image, index) => (
+            {heroSlides.map((slide, index) => (
               <TouchableOpacity
                 key={index}
                 activeOpacity={0.95}
                 style={styles.heroSlide}
-                onPress={() => navigation.navigate("Search")}
+                onPress={() =>
+                  slide.category
+                    ? navigation.navigate("Search", { category: slide.category })
+                    : navigation.navigate("Search")
+                }
               >
                 <Image
-                  source={image}
+                  source={slide.image}
                   style={styles.heroImage}
                   resizeMode="cover"
                 />
@@ -441,6 +562,14 @@ export default function HomeScreen() {
               <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           </View>
+
+          <View style={styles.countdownBanner}>
+            <MaterialIcons name="bolt" size={16} color="#FFFFFF" />
+            <Text style={styles.countdownText}>
+              Today's deals end in {countdown}
+            </Text>
+          </View>
+
           {renderDealsProducts(products)}
         </View>
 
@@ -515,8 +644,16 @@ export default function HomeScreen() {
               placeholder="Enter your email"
               placeholderTextColor="#888888"
               style={styles.newsletterInput}
+              value={newsletterEmail}
+              onChangeText={setNewsletterEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
             />
-            <TouchableOpacity style={styles.subscribeButton} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.subscribeButton}
+              activeOpacity={0.8}
+              onPress={handleSubscribe}
+            >
               <Text style={styles.subscribeText}>Subscribe</Text>
             </TouchableOpacity>
           </View>
@@ -529,17 +666,8 @@ export default function HomeScreen() {
             Your everyday marketplace.
           </Text>
           <View style={styles.footerLinks}>
-            <TouchableOpacity>
-              <Text style={styles.footerLink}>About</Text>
-            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate("Support")}>
               <Text style={styles.footerLink}>Support</Text>
-            </TouchableOpacity>
-            <TouchableOpacity>
-              <Text style={styles.footerLink}>Privacy</Text>
-            </TouchableOpacity>
-            <TouchableOpacity>
-              <Text style={styles.footerLink}>Terms</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.copyright}>
@@ -763,6 +891,22 @@ const styles = StyleSheet.create({
   },
 
   // ========== DEALS FOR YOU (Amazon style) ==========
+  countdownBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#C62828",
+    marginHorizontal: 13,
+    marginBottom: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  countdownText: {
+    marginLeft: 6,
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
   dealsShelfList: {
     paddingHorizontal: 12,
   },

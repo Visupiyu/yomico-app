@@ -27,7 +27,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow YOMICO to access your photos so you can attach them to a review.",
+          "cameraPermission": "Allow YOMICO to access your camera so you can take a photo for a review."
+        }
+      ]
     ]
   }
 }

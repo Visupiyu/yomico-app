@@ -15,6 +15,7 @@ import {
 } from "react-native";
 
 import { RouteProp, useRoute, useNavigation, } from "@react-navigation/native";
+import { MaterialIcons } from "@expo/vector-icons";
 import type {
   NativeStackNavigationProp,
 } from "@react-navigation/native-stack";
@@ -33,8 +34,17 @@ import {
 import {
   db,
   auth,
+  storage,
 } from "../firebase/firebase";
 import { addToCart } from "../services/cartService";
+import { createNotification } from "../services/notificationService";
+import { getStatusColors } from "../utils/orderStatus";
+import * as ImagePicker from "expo-image-picker";
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+} from "firebase/storage";
 type OrderDetailsRouteProp =
   RouteProp<
     RootStackParamList,
@@ -91,7 +101,8 @@ async function reorderItems() {
 async function submitReview(
   product: any,
   rating: number,
-  reviewText: string
+  reviewText: string,
+  photoUris: string[]
 ) {
 
   const user =
@@ -164,6 +175,26 @@ if (
 
 }
 
+    const photoUrls: string[] = [];
+
+    for (let i = 0; i < photoUris.length; i++) {
+
+      const response = await fetch(photoUris[i]);
+      const blob = await response.blob();
+
+      const photoRef = ref(
+        storage,
+        `reviews/${user.uid}/${Date.now()}-${i}.jpg`
+      );
+
+      await uploadBytes(photoRef, blob);
+
+      const downloadUrl = await getDownloadURL(photoRef);
+
+      photoUrls.push(downloadUrl);
+
+    }
+
     await addDoc(
       collection(
         db,
@@ -202,6 +233,9 @@ if (
         review:
           reviewText.trim(),
 
+        photos:
+          photoUrls,
+
         createdAt:
           serverTimestamp(),
 
@@ -213,6 +247,8 @@ if (
       "Review Submitted",
       "Thank you for reviewing this product."
     );
+
+    setReviewPhotos([]);
 
 
   } catch (error) {
@@ -233,8 +269,8 @@ if (
   const route =
     useRoute<OrderDetailsRouteProp>();
 
-  const { order } =
-    route.params;
+  const [order, setOrder] =
+    useState(route.params.order);
 const [reviewRating, setReviewRating] =
   useState(0);
 
@@ -243,6 +279,57 @@ const [reviewText, setReviewText] =
 
 const [reviewProduct, setReviewProduct] =
   useState<any>(null);
+
+const [reviewPhotos, setReviewPhotos] =
+  useState<string[]>([]);
+
+const [uploadingReview, setUploadingReview] =
+  useState(false);
+
+
+async function pickReviewPhoto() {
+
+  const permission =
+    await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+  if (!permission.granted) {
+
+    Alert.alert(
+      "Permission Needed",
+      "Please allow photo access to attach a picture to your review."
+    );
+
+    return;
+
+  }
+
+  const result =
+    await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.6,
+      allowsEditing: false,
+    });
+
+  if (!result.canceled && result.assets?.[0]?.uri) {
+
+    setReviewPhotos((current) => [
+      ...current,
+      result.assets[0].uri,
+    ]);
+
+  }
+
+}
+
+
+function removeReviewPhoto(index: number) {
+
+  setReviewPhotos((current) =>
+    current.filter((_, i) => i !== index)
+  );
+
+}
+
 
   function formatDate(
     timestamp: any
@@ -270,6 +357,11 @@ async function cancelOrder() {
 
   try {
 
+    const updatedPaymentStatus =
+      order.paymentMethod === "COD"
+        ? "Pending"
+        : order.paymentStatus;
+
     await updateDoc(
       doc(
         db,
@@ -278,12 +370,32 @@ async function cancelOrder() {
       ),
       {
         status: "Cancelled",
-        paymentStatus:
-          order.paymentMethod === "COD"
-            ? "Pending"
-            : order.paymentStatus,
+        paymentStatus: updatedPaymentStatus,
       }
     );
+
+    setOrder({
+      ...order,
+      status: "Cancelled",
+      paymentStatus: updatedPaymentStatus,
+    });
+
+    try {
+
+      await createNotification({
+        userId: auth.currentUser?.uid || order.userId,
+        title: "Order Cancelled",
+        message: "Your order has been cancelled.",
+      });
+
+    } catch (notificationError) {
+
+      console.log(
+        "Cancel notification error:",
+        notificationError
+      );
+
+    }
 
     Alert.alert(
       "Order Cancelled",
@@ -353,11 +465,17 @@ async function cancelOrder() {
           </Text>
 
           <View
-            style={styles.statusBadge}
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColors(order.status).bg },
+            ]}
           >
 
             <Text
-              style={styles.statusText}
+              style={[
+                styles.statusText,
+                { color: getStatusColors(order.status).text },
+              ]}
             >
               {order.status ||
                 "Pending"}
@@ -378,6 +496,17 @@ async function cancelOrder() {
     Order Tracking
   </Text>
 
+  {order.status === "Cancelled" ? (
+
+    <View style={styles.cancelledBanner}>
+
+      <Text style={styles.cancelledBannerText}>
+        ❌ This order has been cancelled.
+      </Text>
+
+    </View>
+
+  ) : (
 
   <View style={styles.trackingRow}>
 
@@ -386,11 +515,7 @@ async function cancelOrder() {
     <View style={styles.trackingItem}>
 
       <View
-        style={
-          order.status === "Pending"
-            ? styles.trackingCircleActive
-            : styles.trackingCircle
-        }
+        style={styles.trackingCircleActive}
       >
         <Text style={styles.trackingCheck}>
           ✓
@@ -527,6 +652,8 @@ async function cancelOrder() {
     </View>
 
   </View>
+
+  )}
 
 </View>
 {order.status === "Pending" && (
@@ -1008,6 +1135,58 @@ async function cancelOrder() {
       )}
 
 
+      {/* REVIEW PHOTOS */}
+
+      {reviewProduct?.productId ===
+        (item.productId ||
+          item.id) && (
+
+        <View style={styles.reviewPhotoPickerRow}>
+
+          {reviewPhotos.map((uri, index) => (
+
+            <View key={uri} style={styles.reviewPhotoThumbBox}>
+
+              <Image
+                source={{ uri }}
+                style={styles.reviewPhotoThumb}
+              />
+
+              <TouchableOpacity
+                style={styles.reviewPhotoRemove}
+                onPress={() => removeReviewPhoto(index)}
+              >
+
+                <MaterialIcons
+                  name="close"
+                  size={12}
+                  color="#FFFFFF"
+                />
+
+              </TouchableOpacity>
+
+            </View>
+
+          ))}
+
+          <TouchableOpacity
+            style={styles.addPhotoButton}
+            onPress={pickReviewPhoto}
+          >
+
+            <MaterialIcons
+              name="add-a-photo"
+              size={20}
+              color="#16A34A"
+            />
+
+          </TouchableOpacity>
+
+        </View>
+
+      )}
+
+
       {/* SUBMIT */}
 
       {reviewProduct?.productId ===
@@ -1016,13 +1195,21 @@ async function cancelOrder() {
 
         <TouchableOpacity
           style={styles.reviewButton}
-          onPress={() =>
-            submitReview(
+          disabled={uploadingReview}
+          onPress={async () => {
+
+            setUploadingReview(true);
+
+            await submitReview(
               item,
               reviewRating,
-              reviewText
-            )
-          }
+              reviewText,
+              reviewPhotos
+            );
+
+            setUploadingReview(false);
+
+          }}
         >
 
           <Text
@@ -1030,7 +1217,7 @@ async function cancelOrder() {
               styles.reviewButtonText
             }
           >
-            Submit Review
+            {uploadingReview ? "Submitting..." : "Submit Review"}
           </Text>
 
         </TouchableOpacity>
@@ -1313,6 +1500,18 @@ trackingCircleActive: {
   justifyContent: "center",
 },
 
+cancelledBanner: {
+  backgroundColor: "#FEE2E2",
+  borderRadius: 8,
+  padding: 12,
+},
+
+cancelledBannerText: {
+  fontSize: 13,
+  fontWeight: "700",
+  color: "#DC2626",
+},
+
 trackingCheck: {
   fontSize: 11,
   color: "#FFFFFF",
@@ -1416,6 +1615,51 @@ reviewInput: {
   color: "#333333",
   textAlignVertical: "top",
   marginBottom: 9,
+},
+
+reviewPhotoPickerRow: {
+  flexDirection: "row",
+  flexWrap: "wrap",
+  marginBottom: 9,
+},
+
+reviewPhotoThumbBox: {
+  width: 56,
+  height: 56,
+  marginRight: 8,
+  marginBottom: 8,
+  position: "relative",
+},
+
+reviewPhotoThumb: {
+  width: 56,
+  height: 56,
+  borderRadius: 8,
+  backgroundColor: "#F5F5F5",
+},
+
+reviewPhotoRemove: {
+  position: "absolute",
+  top: -5,
+  right: -5,
+  width: 18,
+  height: 18,
+  borderRadius: 9,
+  backgroundColor: "#DC2626",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+addPhotoButton: {
+  width: 56,
+  height: 56,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "#16A34A",
+  borderStyle: "dashed",
+  alignItems: "center",
+  justifyContent: "center",
+  marginBottom: 8,
 },
 
 reviewButton: {

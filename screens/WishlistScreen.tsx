@@ -24,6 +24,9 @@ import { auth, db } from "../firebase/firebase";
 import {
   addToCart,
 } from "../services/cartService";
+import {
+  getProductById,
+} from "../services/productService";
 
 import { MaterialIcons } from "@expo/vector-icons";
 
@@ -71,12 +74,104 @@ export default function WishlistScreen() {
   const [loading, setLoading] =
     useState(true);
 
+  const [priceDrops, setPriceDrops] =
+    useState<Record<string, number>>({});
+
+  const [movingAll, setMovingAll] =
+    useState(false);
+
 
   useEffect(() => {
 
     loadWishlist();
 
   }, []);
+
+
+  async function loadPriceDrops(
+    items: WishlistItem[]
+  ) {
+
+    const drops: Record<string, number> = {};
+
+    await Promise.all(
+      items.map(async (item) => {
+
+        if (!item.productId) return;
+
+        const liveProduct =
+          await getProductById(item.productId);
+
+        if (!liveProduct) return;
+
+        const livePrice = Number((liveProduct as any).price || 0);
+        const storedPrice = Number(item.price || 0);
+
+        if (livePrice > 0 && livePrice < storedPrice) {
+          drops[item.id] = storedPrice - livePrice;
+        }
+
+      })
+    );
+
+    setPriceDrops(drops);
+
+  }
+
+
+  async function moveAllToCart() {
+
+    if (!wishlist.length) return;
+
+    setMovingAll(true);
+
+    try {
+
+      for (const item of wishlist) {
+
+        await addToCart({
+          id: item.productId,
+          name: item.name,
+          image: item.image,
+          price: item.price,
+          mrp: item.mrp,
+          discountPercent: item.discountPercent,
+          vendorId: item.vendorId,
+          vendorName: item.vendorName,
+        });
+
+        await deleteDoc(
+          doc(db, "wishlist", item.id)
+        );
+
+      }
+
+      setWishlist([]);
+
+      Alert.alert(
+        "Moved to Cart",
+        "All wishlist items have been added to your cart."
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Move all to cart error:",
+        error
+      );
+
+      Alert.alert(
+        "Error",
+        "Unable to move all items to cart."
+      );
+
+    } finally {
+
+      setMovingAll(false);
+
+    }
+
+  }
 
 
   async function loadWishlist() {
@@ -125,6 +220,8 @@ export default function WishlistScreen() {
 
 
       setWishlist(items);
+
+      loadPriceDrops(items);
 
     } catch (error) {
 
@@ -357,6 +454,24 @@ async function addWishlistItemToCart(
             </Text>
 
           )}
+
+          {priceDrops[item.id] > 0 && (
+
+            <View style={styles.priceDropBadge}>
+
+              <MaterialIcons
+                name="trending-down"
+                size={12}
+                color="#16A34A"
+              />
+
+              <Text style={styles.priceDropText}>
+                Price dropped by ₹{priceDrops[item.id]}
+              </Text>
+
+            </View>
+
+          )}
 <TouchableOpacity
   style={
     styles.addCartButton
@@ -439,14 +554,35 @@ async function addWishlistItemToCart(
         </Text>
 
 
-        <Text
-          style={styles.count}
-        >
-          {wishlist.length}{" "}
-          {wishlist.length === 1
-            ? "item"
-            : "items"}
-        </Text>
+        <View style={styles.headerRight}>
+
+          <Text
+            style={styles.count}
+          >
+            {wishlist.length}{" "}
+            {wishlist.length === 1
+              ? "item"
+              : "items"}
+          </Text>
+
+          {wishlist.length > 0 && (
+
+            <TouchableOpacity
+              style={styles.moveAllButton}
+              activeOpacity={0.8}
+              disabled={movingAll}
+              onPress={moveAllToCart}
+            >
+
+              <Text style={styles.moveAllText}>
+                {movingAll ? "Moving..." : "Move all to cart"}
+              </Text>
+
+            </TouchableOpacity>
+
+          )}
+
+        </View>
 
       </View>
 
@@ -579,6 +715,38 @@ const styles =
       fontSize: 11,
       color: "#777777",
       fontWeight: "600",
+    },
+
+
+    headerRight: {
+      alignItems: "flex-end",
+    },
+
+
+    moveAllButton: {
+      marginTop: 6,
+    },
+
+
+    moveAllText: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: "#16A34A",
+    },
+
+
+    priceDropBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 5,
+    },
+
+
+    priceDropText: {
+      marginLeft: 3,
+      fontSize: 10,
+      fontWeight: "700",
+      color: "#16A34A",
     },
 
 

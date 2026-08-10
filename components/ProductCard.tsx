@@ -51,7 +51,7 @@ type ProductProps = {
 type NavigationProp =
   NativeStackNavigationProp<
     RootStackParamList,
-    "Home"
+    "MainTabs"
   >;
 
 
@@ -64,6 +64,17 @@ export default function ProductCard({
 
 
   async function handleAddToCart() {
+
+    if (!auth.currentUser) {
+
+      Alert.alert(
+        "Login Required",
+        "Please login to add products to your cart."
+      );
+
+      return;
+
+    }
 
     try {
 

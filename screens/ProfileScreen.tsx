@@ -159,9 +159,9 @@ export default function ProfileScreen() {
                   auth
                 );
 
-                navigation.replace(
-                  "Login"
-                );
+                navigation.navigate("MainTabs", {
+  screen: "LoginTab",
+});
 
               } catch (error) {
 
