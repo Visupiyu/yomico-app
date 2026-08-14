@@ -12,7 +12,11 @@ import {
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  signOut,
+} from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/firebase";
 import { RootStackParamList } from "../navigation/AppNavigator";
@@ -78,12 +82,16 @@ export default function RegisterScreen() {
     }
   );
 
+  await sendEmailVerification(userCredential.user);
+
+  await signOut(auth);
+
   Alert.alert(
-    "Success",
-    "Account created successfully!"
+    "Verify Your Email",
+    "Account created! We've sent a verification link to your email. Please verify it before logging in."
   );
 
- navigation.navigate("MainTabs", {
+  navigation.navigate("MainTabs", {
   screen: "LoginTab",
 });
 

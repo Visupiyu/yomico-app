@@ -11,7 +11,12 @@ import {
 
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  signOut,
+} from "firebase/auth";
 import { MaterialIcons } from "@expo/vector-icons";
 
 import { auth } from "../firebase/firebase";
@@ -38,11 +43,23 @@ export default function LoginScreen() {
     try {
       setLoading(true);
 
-      await signInWithEmailAndPassword(
+      const userCredential = await signInWithEmailAndPassword(
         auth,
         email.trim(),
         password
       );
+
+      if (!userCredential.user.emailVerified) {
+        await sendEmailVerification(userCredential.user);
+        await signOut(auth);
+
+        Alert.alert(
+          "Verify Your Email",
+          "Your email isn't verified yet. We've sent a new verification link — please check your inbox before logging in."
+        );
+
+        return;
+      }
 
      navigation.replace("MainTabs", {
   screen: "HomeTab",

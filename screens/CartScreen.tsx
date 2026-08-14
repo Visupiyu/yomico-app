@@ -65,12 +65,16 @@ export default function CartScreen() {
     item: any
   ) {
 
-    await updateCartQuantity(
-      item.id,
-      item.quantity + 1
-    );
+    try {
+      await updateCartQuantity(
+        item.id,
+        item.quantity + 1
+      );
 
-    loadCart();
+      loadCart();
+    } catch (error) {
+      Alert.alert("Error", "Couldn't update quantity. Please try again.");
+    }
 
   }
 
@@ -87,12 +91,16 @@ export default function CartScreen() {
     }
 
 
-    await updateCartQuantity(
-      item.id,
-      item.quantity - 1
-    );
+    try {
+      await updateCartQuantity(
+        item.id,
+        item.quantity - 1
+      );
 
-    loadCart();
+      loadCart();
+    } catch (error) {
+      Alert.alert("Error", "Couldn't update quantity. Please try again.");
+    }
 
   }
 
@@ -119,9 +127,13 @@ export default function CartScreen() {
     item: any
   ) {
 
-    await moveToSavedForLater(item.id);
+    try {
+      await moveToSavedForLater(item.id);
 
-    loadCart();
+      loadCart();
+    } catch (error) {
+      Alert.alert("Error", "Couldn't save item for later. Please try again.");
+    }
 
   }
 
@@ -130,9 +142,13 @@ export default function CartScreen() {
     item: any
   ) {
 
-    await moveToCart(item.id);
+    try {
+      await moveToCart(item.id);
 
-    loadCart();
+      loadCart();
+    } catch (error) {
+      Alert.alert("Error", "Couldn't move item to cart. Please try again.");
+    }
 
   }
 

@@ -39,7 +39,11 @@ import {
 import { addToCart } from "../services/cartService";
 import { createNotification } from "../services/notificationService";
 import { getStatusColors } from "../utils/orderStatus";
-import { formatPaymentMethod, isPayOnDelivery } from "../utils/paymentMethod";
+import {
+  formatPaymentMethod,
+  formatPaymentStatus,
+  isPayOnDelivery,
+} from "../utils/paymentMethod";
 import * as ImagePicker from "expo-image-picker";
 import {
   ref,
@@ -906,11 +910,30 @@ async function cancelOrder() {
             <Text
               style={styles.infoValue}
             >
-              {order.paymentStatus ||
-                "Pending"}
+              {formatPaymentStatus(order.paymentStatus)}
             </Text>
 
           </View>
+
+          {isPayOnDelivery(order.paymentMethod) && order.paymentAmount ? (
+            <View
+              style={styles.infoRow}
+            >
+
+              <Text
+                style={styles.infoLabel}
+              >
+                Amount to Pay
+              </Text>
+
+              <Text
+                style={styles.infoValue}
+              >
+                ₹{Number(order.paymentAmount).toLocaleString("en-IN")}
+              </Text>
+
+            </View>
+          ) : null}
 
         </View>
 

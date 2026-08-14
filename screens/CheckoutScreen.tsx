@@ -156,7 +156,9 @@ async function loadCartSummary() {
   try {
 
     const items =
-      await getCartItems();
+      (await getCartItems()).filter(
+        (item: any) => !item.savedForLater
+      );
       const calculatedMRP =
   items.reduce(
     (
@@ -460,8 +462,9 @@ setCartItemsTotalMRP(
       setLoading(true);
 
 
-      const cartItems =
-        await getCartItems();
+      const cartItems = (
+        await getCartItems()
+      ).filter((item: any) => !item.savedForLater);
 
 
       if (
@@ -647,8 +650,8 @@ platformFee:
 
 
       Alert.alert(
-        "Order Placed",
-        "Your order has been placed successfully!",
+        "🎉 Your Order is Confirmed!",
+        `Payment: Pay on Delivery (UPI Only)\nAmount to Pay: ₹${total.toFixed(0)}\n\nPlease pay the exact amount by UPI when your order arrives.`,
         [
           {
             text: "OK",

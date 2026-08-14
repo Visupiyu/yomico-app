@@ -721,20 +721,6 @@ saveRecentlyViewed(
 
 </View>
 <TouchableOpacity
-  style={styles.questionsButton}
-  onPress={() =>
-  navigation.navigate(
-  "ProductQuestions",
-  {
-    productId: product.id,
-    productName: product.name,
-    vendorId: product.vendorId,
-    vendorName: product.vendorName,
-  }
-)
-  }
->
-  <TouchableOpacity
   style={styles.chatButton}
   onPress={() =>
     navigation.navigate(
@@ -767,6 +753,20 @@ saveRecentlyViewed(
 
 </TouchableOpacity>
 
+<TouchableOpacity
+  style={styles.questionsButton}
+  onPress={() =>
+  navigation.navigate(
+  "ProductQuestions",
+  {
+    productId: product.id,
+    productName: product.name,
+    vendorId: product.vendorId,
+    vendorName: product.vendorName,
+  }
+)
+  }
+>
   <MaterialIcons
     name="help-outline"
     size={20}
