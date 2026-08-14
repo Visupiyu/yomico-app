@@ -30,6 +30,7 @@ import {
 } from "../navigation/AppNavigator";
 
 import { getStatusColors } from "../utils/orderStatus";
+import { formatPaymentMethod } from "../utils/paymentMethod";
 
 
 export default function OrdersScreen() {
@@ -439,8 +440,7 @@ const navigation =
                     }
                   >
                     {
-                      item.paymentMethod ||
-                      "COD"
+                      formatPaymentMethod(item.paymentMethod)
                     }
                   </Text>
 

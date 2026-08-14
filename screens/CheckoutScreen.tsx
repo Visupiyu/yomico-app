@@ -38,6 +38,11 @@ import {
   validateCoupon,
 } from "../services/couponService";
 
+import {
+  PAY_ON_DELIVERY_METHOD,
+  formatPaymentMethod,
+} from "../utils/paymentMethod";
+
 import { useNavigation } from "@react-navigation/native";
 
 import {
@@ -81,8 +86,13 @@ export default function CheckoutScreen() {
   const [loading, setLoading] =
     useState(false);
 
-  const [paymentMethod, setPaymentMethod] =
-    useState<"COD" | "UPI">("COD");
+  /*
+    Only one payment method exists today: UPI collected at
+    delivery. Cash is not accepted. Kept as a named constant
+    (not a toggle) so a future prepaid/online method can be
+    added here without another checkout redesign.
+  */
+  const paymentMethod = PAY_ON_DELIVERY_METHOD;
 
 const [gstAmount, setGstAmount] =
   useState(0);
@@ -985,24 +995,12 @@ platformFee:
           </Text>
 
 
-          <TouchableOpacity
-            style={[
-              styles.codRow,
-              paymentMethod !== "COD" &&
-                styles.codRowInactive,
-            ]}
-            activeOpacity={0.8}
-            onPress={() =>
-              setPaymentMethod("COD")
-            }
+          <View
+            style={styles.codRow}
           >
 
             <View
-              style={
-                paymentMethod === "COD"
-                  ? styles.radio
-                  : styles.radioOutline
-              }
+              style={styles.radio}
             />
 
 
@@ -1013,63 +1011,19 @@ platformFee:
               <Text
                 style={styles.codTitle}
               >
-                Cash on Delivery
+                Pay on Delivery (UPI Only)
               </Text>
 
 
               <Text
                 style={styles.codSubtitle}
               >
-                Pay when your order arrives
+                Pay securely via UPI when your order is delivered. Cash is not accepted.
               </Text>
 
             </View>
 
-          </TouchableOpacity>
-
-
-          <TouchableOpacity
-            style={[
-              styles.codRow,
-              styles.upiRow,
-              paymentMethod !== "UPI" &&
-                styles.codRowInactive,
-            ]}
-            activeOpacity={0.8}
-            onPress={() =>
-              setPaymentMethod("UPI")
-            }
-          >
-
-            <View
-              style={
-                paymentMethod === "UPI"
-                  ? styles.radio
-                  : styles.radioOutline
-              }
-            />
-
-
-            <View
-              style={styles.codTextContainer}
-            >
-
-              <Text
-                style={styles.codTitle}
-              >
-                UPI on Delivery
-              </Text>
-
-
-              <Text
-                style={styles.codSubtitle}
-              >
-                Pay via UPI when your order arrives
-              </Text>
-
-            </View>
-
-          </TouchableOpacity>
+          </View>
 
         </View>
 
@@ -1438,7 +1392,7 @@ platformFee:
           >
             {loading
               ? "Placing Order..."
-              : `Place Order • ${paymentMethod}`}
+              : `Place Order • ${formatPaymentMethod(paymentMethod)}`}
           </Text>
 
         </TouchableOpacity>
@@ -1791,27 +1745,6 @@ const styles =
       backgroundColor: "#16A34A",
       borderWidth: 4,
       borderColor: "#FFFFFF",
-    },
-
-
-    radioOutline: {
-      width: 18,
-      height: 18,
-      borderRadius: 9,
-      backgroundColor: "#FFFFFF",
-      borderWidth: 1,
-      borderColor: "#BBBBBB",
-    },
-
-
-    codRowInactive: {
-      borderColor: "#E2E8E4",
-      backgroundColor: "#FFFFFF",
-    },
-
-
-    upiRow: {
-      marginTop: 10,
     },
 
 

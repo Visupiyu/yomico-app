@@ -39,6 +39,7 @@ import {
 import { addToCart } from "../services/cartService";
 import { createNotification } from "../services/notificationService";
 import { getStatusColors } from "../utils/orderStatus";
+import { formatPaymentMethod, isPayOnDelivery } from "../utils/paymentMethod";
 import * as ImagePicker from "expo-image-picker";
 import {
   ref,
@@ -358,7 +359,7 @@ async function cancelOrder() {
   try {
 
     const updatedPaymentStatus =
-      order.paymentMethod === "COD"
+      isPayOnDelivery(order.paymentMethod)
         ? "Pending"
         : order.paymentStatus;
 
@@ -886,8 +887,7 @@ async function cancelOrder() {
             <Text
               style={styles.infoValue}
             >
-              {order.paymentMethod ||
-                "COD"}
+              {formatPaymentMethod(order.paymentMethod)}
             </Text>
 
           </View>
