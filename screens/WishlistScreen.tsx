@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 
 import {
   SafeAreaView,
@@ -30,7 +30,7 @@ import {
 
 import { MaterialIcons } from "@expo/vector-icons";
 
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 
 import {
   NativeStackNavigationProp,
@@ -81,11 +81,13 @@ export default function WishlistScreen() {
     useState(false);
 
 
-  useEffect(() => {
+  useFocusEffect(
+    useCallback(() => {
 
-    loadWishlist();
+      loadWishlist();
 
-  }, []);
+    }, [])
+  );
 
 
   async function loadPriceDrops(

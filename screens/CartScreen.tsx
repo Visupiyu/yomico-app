@@ -9,6 +9,7 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 
 import {
@@ -31,11 +32,28 @@ import {
   RootStackParamList,
 } from "../navigation/AppNavigator";
 
+import {
+  getShippingSettings,
+  calculateShipping,
+  FREE_SHIPPING_THRESHOLD,
+  STANDARD_SHIPPING_CHARGE,
+  ShippingSettings,
+} from "../services/shippingService";
+
 
 export default function CartScreen() {
 
   const [cartItems, setCartItems] =
     useState<any[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [shippingSettings, setShippingSettings] =
+    useState<ShippingSettings>({
+      freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
+      standardShippingCharge: STANDARD_SHIPPING_CHARGE,
+    });
 
   const navigation =
     useNavigation<
@@ -48,6 +66,7 @@ export default function CartScreen() {
 
   useEffect(() => {
     loadCart();
+    getShippingSettings().then(setShippingSettings);
   }, []);
 
 
@@ -57,6 +76,8 @@ export default function CartScreen() {
       await getCartItems();
 
     setCartItems(data);
+
+    setLoading(false);
 
   }
 
@@ -171,9 +192,10 @@ export default function CartScreen() {
 
 
   const shipping =
-    subtotal > 500
-      ? 0
-      : 50;
+    calculateShipping(
+      subtotal,
+      shippingSettings
+    );
 
 
   const total =
@@ -331,9 +353,20 @@ export default function CartScreen() {
 
           <View style={styles.emptyBox}>
 
-            <Text style={styles.emptyText}>
-              Your cart is empty.
-            </Text>
+            {loading ? (
+
+              <ActivityIndicator
+                size="small"
+                color="#16A34A"
+              />
+
+            ) : (
+
+              <Text style={styles.emptyText}>
+                Your cart is empty.
+              </Text>
+
+            )}
 
           </View>
 

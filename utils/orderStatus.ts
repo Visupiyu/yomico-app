@@ -3,7 +3,7 @@ export const STATUS_STEPS = [
   "Confirmed",
   "Packed",
   "Shipped",
-  "Out for delivery",
+  "Out For Delivery",
   "Delivered",
 ];
 
@@ -12,9 +12,10 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   Confirmed: { bg: "#E0F2FE", text: "#0284C7" },
   Packed: { bg: "#EDE9FE", text: "#7C3AED" },
   Shipped: { bg: "#E0E7FF", text: "#4F46E5" },
-  "Out for delivery": { bg: "#FFF7ED", text: "#EA580C" },
+  "Out For Delivery": { bg: "#FFF7ED", text: "#EA580C" },
   Delivered: { bg: "#DCFCE7", text: "#16A34A" },
   Cancelled: { bg: "#FEE2E2", text: "#DC2626" },
+  "Delivery Failed": { bg: "#FFE4E6", text: "#E11D48" },
 };
 
 export function getStatusColors(status?: string) {

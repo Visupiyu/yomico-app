@@ -91,6 +91,12 @@ const navigation =
           })
         );
 
+      orderData.sort(
+        (a: any, b: any) =>
+          (b.createdAt?.seconds || 0) -
+          (a.createdAt?.seconds || 0)
+      );
+
 
       setOrders(orderData);
 

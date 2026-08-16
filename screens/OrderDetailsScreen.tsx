@@ -542,7 +542,7 @@ async function cancelOrder() {
             "Confirmed",
             "Packed",
             "Shipped",
-            "Out for delivery",
+            "Out For Delivery",
             "Delivered",
           ].includes(order.status)
             ? styles.trackingCircleActive
@@ -568,7 +568,7 @@ async function cancelOrder() {
           [
             "Packed",
             "Shipped",
-            "Out for delivery",
+            "Out For Delivery",
             "Delivered",
           ].includes(order.status)
             ? styles.trackingCircleActive
@@ -593,7 +593,7 @@ async function cancelOrder() {
         style={
           [
             "Shipped",
-            "Out for delivery",
+            "Out For Delivery",
             "Delivered",
           ].includes(order.status)
             ? styles.trackingCircleActive
@@ -617,7 +617,7 @@ async function cancelOrder() {
       <View
         style={
           [
-            "Out for delivery",
+            "Out For Delivery",
             "Delivered",
           ].includes(order.status)
             ? styles.trackingCircleActive
@@ -630,7 +630,7 @@ async function cancelOrder() {
       </View>
 
       <Text style={styles.trackingTitle}>
-        Out for delivery
+        Out For Delivery
       </Text>
 
     </View>
@@ -843,15 +843,7 @@ async function cancelOrder() {
           <Text
             style={styles.address}
           >
-            {order.deliveryAddress}
-          </Text>
-
-
-          <Text
-            style={styles.address}
-          >
-            {order.city} -{" "}
-            {order.pincode}
+            {order.address}
           </Text>
 
 
@@ -859,7 +851,7 @@ async function cancelOrder() {
             style={styles.mobile}
           >
             Mobile:{" "}
-            {order.customerMobile}
+            {order.phone}
           </Text>
 
         </View>
@@ -1043,6 +1035,51 @@ async function cancelOrder() {
             </Text>
 
           </View>
+
+
+          <View
+            style={styles.infoRow}
+          >
+
+            <Text
+              style={styles.infoLabel}
+            >
+              GST
+            </Text>
+
+            <Text
+              style={styles.infoValue}
+            >
+              ₹{order.gstAmount || 0}
+            </Text>
+
+          </View>
+
+
+          {order.discountAmount > 0 && (
+
+            <View
+              style={styles.infoRow}
+            >
+
+              <Text
+                style={styles.infoLabel}
+              >
+                Coupon Discount
+                {order.couponCode
+                  ? ` (${order.couponCode})`
+                  : ""}
+              </Text>
+
+              <Text
+                style={styles.infoValue}
+              >
+                -₹{order.discountAmount}
+              </Text>
+
+            </View>
+
+          )}
 
 
           <View

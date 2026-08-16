@@ -21,6 +21,9 @@ import {
   getDocs,
   query,
   where,
+  doc,
+  runTransaction,
+  increment,
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase/firebase";
@@ -42,6 +45,14 @@ import {
   PAY_ON_DELIVERY_METHOD,
   formatPaymentMethod,
 } from "../utils/paymentMethod";
+
+import {
+  getShippingSettings,
+  calculateShipping,
+  FREE_SHIPPING_THRESHOLD,
+  STANDARD_SHIPPING_CHARGE,
+  ShippingSettings,
+} from "../services/shippingService";
 
 import { useNavigation } from "@react-navigation/native";
 
@@ -97,7 +108,6 @@ export default function CheckoutScreen() {
 const [gstAmount, setGstAmount] =
   useState(0);
 
-const platformFee = 5;
 const [cartItemsTotalMRP, setCartItemsTotalMRP] =
   useState(0);
 
@@ -135,22 +145,39 @@ const [cartItemsTotalMRP, setCartItemsTotalMRP] =
     useState(false);
 
 
-  const shipping = 50;
     const [subtotal, setSubtotal] =
     useState(0);
-    
+
 
   const [shippingAmount, setShippingAmount] =
     useState(0);
-    
+
+  const [shippingSettings, setShippingSettings] =
+    useState<ShippingSettings>({
+      freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
+      standardShippingCharge: STANDARD_SHIPPING_CHARGE,
+    });
+
 
 
   useEffect(() => {
 
     loadSavedAddress();
      loadCartSummary();
+    getShippingSettings().then(setShippingSettings);
 
   }, []);
+
+  // Shipping recomputes whenever the subtotal changes, or once the live
+  // settings values load in behind the defaults — mirrors yogi-mart-next's
+  // checkout page so both apps land on the same shipping figure.
+  useEffect(() => {
+
+    setShippingAmount(
+      calculateShipping(subtotal, shippingSettings)
+    );
+
+  }, [subtotal, shippingSettings]);
 async function loadCartSummary() {
 
   try {
@@ -189,11 +216,6 @@ setCartItemsTotalMRP(
         0
       );
 
-    const calculatedShipping =
-      calculatedSubtotal > 500
-        ? 0
-        : shipping;
-
     const calculatedGst =
       items.reduce(
         (
@@ -222,10 +244,6 @@ setCartItemsTotalMRP(
 
     setSubtotal(
       calculatedSubtotal
-    );
-
-    setShippingAmount(
-      calculatedShipping
     );
 
     setGstAmount(
@@ -485,6 +503,23 @@ setCartItemsTotalMRP(
       }
 
 
+      const vendorIds = [
+        ...new Set(
+          cartItems
+            .map((item: any) => item.vendorId)
+            .filter(Boolean)
+        ),
+      ];
+
+      const flattenedAddress = [
+        address.trim(),
+        city.trim(),
+        pincode.trim(),
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+
      const subtotal =
   cartItems.reduce(
     (
@@ -525,12 +560,8 @@ setGstAmount(
 );
 
       const finalShipping =
-        subtotal > 500
-          ? 0
-          : shipping;
+        calculateShipping(subtotal, shippingSettings);
 
-
-     const platformFee = 5;
 
 const discountAmount =
   appliedCoupon?.discountAmount || 0;
@@ -538,7 +569,6 @@ const discountAmount =
 const total =
   subtotal +
   finalShipping +
-  platformFee +
   calculatedGst -
   discountAmount;
 
@@ -553,17 +583,14 @@ const total =
         customerEmail:
           user.email || "",
 
-        customerMobile:
+        phone:
           mobile.trim(),
 
-        deliveryAddress:
-          address.trim(),
+        address:
+          flattenedAddress,
 
-        city:
-          city.trim(),
-
-        pincode:
-          pincode.trim(),
+        vendorIds:
+          vendorIds,
 
         deliverySlot:
           deliverySlot,
@@ -600,20 +627,190 @@ const total =
 
 gstAmount:
   calculatedGst,
-
-platformFee:
-  platformFee,
 };
-     
 
 
-      await addDoc(
-        collection(
+      /*
+       * Atomically reserve stock for every product in this order
+       * before creating it — mirrors yogi-mart-next's checkout
+       * transaction so mobile orders can't oversell or leave
+       * stock/sales inconsistent with what was actually sold.
+       */
+
+      try {
+
+        await runTransaction(
           db,
-          "orders"
-        ),
-        orderData
-      );
+          async (transaction) => {
+
+            const productRefs =
+              cartItems.map(
+                (item: any) =>
+                  doc(
+                    db,
+                    "products",
+                    item.productId
+                  )
+              );
+
+            const productSnaps =
+              await Promise.all(
+                productRefs.map(
+                  (productRef: any) =>
+                    transaction.get(
+                      productRef
+                    )
+                )
+              );
+
+            for (
+              let i = 0;
+              i < cartItems.length;
+              i++
+            ) {
+
+              const item = cartItems[i] as any;
+              const snap = productSnaps[i];
+
+              if (!snap.exists()) {
+
+                throw new Error(
+                  `${item.name || "This product"} is no longer available.`
+                );
+
+              }
+
+              const productData =
+                snap.data() as any;
+
+              if (
+                productData.active === false
+              ) {
+
+                throw new Error(
+                  `${item.name || "This product"} is no longer available.`
+                );
+
+              }
+
+              const availableStock =
+                Number(
+                  productData.stock ?? 0
+                );
+
+              if (
+                availableStock <
+                Number(item.quantity)
+              ) {
+
+                throw new Error(
+                  `Only ${availableStock} left for ${item.name || "this product"}.`
+                );
+
+              }
+
+            }
+
+            for (
+              let i = 0;
+              i < cartItems.length;
+              i++
+            ) {
+
+              const item = cartItems[i] as any;
+
+              transaction.update(
+                productRefs[i],
+                {
+                  stock: increment(
+                    -Number(item.quantity)
+                  ),
+                  sales: increment(
+                    Number(item.quantity)
+                  ),
+                }
+              );
+
+            }
+
+          }
+        );
+
+      } catch (stockError: any) {
+
+        Alert.alert(
+          "Stock Unavailable",
+          stockError?.message ||
+            "One or more items in your cart are no longer available in the requested quantity."
+        );
+
+        return;
+
+      }
+
+
+      try {
+
+        await addDoc(
+          collection(
+            db,
+            "orders"
+          ),
+          orderData
+        );
+
+      } catch (orderCreateError) {
+
+        /*
+         * Order was never created — restore the stock/sales we just
+         * reserved so it isn't permanently lost. Best-effort: if this
+         * rollback also fails, the outer catch below still reports the
+         * original order-creation failure to the customer.
+         */
+
+        try {
+
+          await runTransaction(
+            db,
+            async (transaction) => {
+
+              for (
+                const item of cartItems as any[]
+              ) {
+
+                transaction.update(
+                  doc(
+                    db,
+                    "products",
+                    item.productId
+                  ),
+                  {
+                    stock: increment(
+                      Number(item.quantity)
+                    ),
+                    sales: increment(
+                      -Number(item.quantity)
+                    ),
+                  }
+                );
+
+              }
+
+            }
+          );
+
+        } catch (rollbackError) {
+
+          console.error(
+            "Stock rollback error:",
+            rollbackError
+          );
+
+        }
+
+        throw orderCreateError;
+
+      }
 
       try {
 
@@ -638,12 +835,25 @@ platformFee:
        * from the cart.
        */
 
-      for (
-        const item of cartItems
-      ) {
+      try {
 
-        await removeCartItem(
-          item.id
+        for (
+          const item of cartItems
+        ) {
+
+          await removeCartItem(
+            item.id
+          );
+
+        }
+
+      } catch (cartClearError) {
+
+        // Cleanup failure only — the order above was already created
+        // successfully, so this must never surface as an order failure.
+        console.error(
+          "Cart clearing error:",
+          cartClearError
         );
 
       }
@@ -1192,7 +1402,7 @@ platformFee:
         <Text
           style={styles.mrpBill}
         >
-          ₹{shipping}
+          ₹{shippingSettings.standardShippingCharge}
         </Text>
 
       )}
@@ -1211,28 +1421,6 @@ platformFee:
       </Text>
 
     </View>
-
-  </View>
-
-
-  {/* PLATFORM FEE */}
-
-  <View
-    style={styles.summaryRow}
-  >
-
-    <Text
-      style={styles.summaryLabel}
-    >
-      Platform fee
-    </Text>
-
-
-    <Text
-      style={styles.summaryValue}
-    >
-      ₹{platformFee.toFixed(0)}
-    </Text>
 
   </View>
 
@@ -1311,7 +1499,6 @@ platformFee:
       {(
         subtotal +
         shippingAmount +
-        platformFee +
         gstAmount -
         (appliedCoupon?.discountAmount || 0)
       ).toFixed(0)}
@@ -1343,7 +1530,7 @@ platformFee:
           cartItemsTotalMRP - subtotal
         ) +
         (shippingAmount === 0
-          ? shipping
+          ? shippingSettings.standardShippingCharge
           : 0)
       ).toFixed(0)}
     </Text>
