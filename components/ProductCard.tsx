@@ -43,8 +43,22 @@ import {
 } from "../navigation/AppNavigator";
 
 
+type ProductCardVariant =
+  | "grid"
+  | "featured"
+  | "compact";
+
+
 type ProductProps = {
   product: any;
+  // Optional — defaults to "grid", which is the existing appearance/
+  // behavior unchanged. "featured" and "compact" are prepared here for
+  // the Best Sellers / Deals for You migrations, done as a later step.
+  variant?: ProductCardVariant;
+  // Optional — only rendered when provided, e.g. "#1 BEST SELLER".
+  rankBadge?: string;
+  // Optional — only rendered when provided, e.g. "Hot Deal".
+  dealLabel?: string;
 };
 
 
@@ -57,6 +71,9 @@ type NavigationProp =
 
 export default function ProductCard({
   product,
+  variant = "grid",
+  rankBadge,
+  dealLabel,
 }: ProductProps) {
 
   const navigation =
@@ -262,9 +279,11 @@ export default function ProductCard({
   return (
 
     <TouchableOpacity
-      style={
-        styles.card
-      }
+      style={[
+        styles.card,
+        variant === "compact" &&
+          styles.cardCompact,
+      ]}
       activeOpacity={0.9}
       onPress={() =>
         navigation.navigate(
@@ -275,6 +294,29 @@ export default function ProductCard({
         )
       }
     >
+
+      {/* RANK BADGE (featured variant) */}
+
+      {rankBadge ? (
+
+        <View
+          style={
+            styles.rankBadge
+          }
+        >
+
+          <Text
+            style={
+              styles.rankBadgeText
+            }
+          >
+            {rankBadge}
+          </Text>
+
+        </View>
+
+      ) : null}
+
 
       {/* IMAGE AREA */}
 
@@ -359,6 +401,22 @@ export default function ProductCard({
           {product.name ||
             "Product"}
         </Text>
+
+
+        {/* DEAL LABEL (compact variant) */}
+
+        {dealLabel ? (
+
+          <Text
+            style={
+              styles.dealLabel
+            }
+            numberOfLines={2}
+          >
+            {dealLabel}
+          </Text>
+
+        ) : null}
 
 
         {/* RATING */}
@@ -536,6 +594,14 @@ const styles =
     },
 
 
+    // Narrower footprint for dense grids (e.g. Deals for You).
+    // Only applied when variant="compact" — default "grid" card
+    // above is untouched.
+    cardCompact: {
+      width: 140,
+    },
+
+
     imageBox: {
       height: 142,
       backgroundColor:
@@ -574,6 +640,43 @@ const styles =
       fontSize: 9,
       fontWeight:
         "800",
+    },
+
+
+    // "#N BEST SELLER" style badge — only rendered when the
+    // rankBadge prop is provided (featured variant).
+    rankBadge: {
+      alignSelf:
+        "flex-start",
+      marginTop: 8,
+      marginLeft: 9,
+      backgroundColor:
+        "#FFF3D6",
+      paddingHorizontal: 7,
+      paddingVertical: 4,
+      borderRadius: 5,
+    },
+
+
+    rankBadgeText: {
+      color:
+        "#A16207",
+      fontSize: 9,
+      fontWeight:
+        "800",
+    },
+
+
+    // Marketing label (e.g. "Hot Deal") — only rendered when the
+    // dealLabel prop is provided (compact variant).
+    dealLabel: {
+      marginTop: 4,
+      fontSize: 11,
+      fontWeight:
+        "700",
+      color:
+        "#E53935",
+      lineHeight: 15,
     },
 
 

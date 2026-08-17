@@ -255,12 +255,6 @@ export default function HomeScreen() {
             {/* 2 × 2 Grid */}
             <View style={styles.dealGrid}>
               {group.map((product: any, productIndex: number) => {
-                const image = product.images?.[0] || product.image || "";
-                const price = Number(product.price) || 0;
-                const mrp = Number(product.mrp || product.originalPrice || product.price);
-                const discount =
-                  mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
-
                 const dealLabels = [
                   "Freedom Sale Mega Deal",
                   "Freedom Sale Deal",
@@ -270,43 +264,12 @@ export default function HomeScreen() {
                 const dealText = dealLabels[productIndex % dealLabels.length];
 
                 return (
-                 
- 
-                  <TouchableOpacity
+                  <ProductCard
                     key={product.id || `${index}-${productIndex}`}
-                    activeOpacity={0.9}
-                    style={styles.dealProductTile}
-                    onPress={() =>
-                      navigation.navigate("ProductDetails", { product })
-                    }
-                  >
-                    {/* Image */}
-                    <View style={styles.dealTileImageBox}>
-                      {image ? (
-                        <Image
-                          source={{ uri: image }}
-                          style={styles.dealTileImage}
-                          resizeMode="contain"
-                        />
-                      ) : (
-                        <MaterialIcons name="image" size={40} color="#CBD5D0" />
-                      )}
-                    </View>
-
-                    {/* Discount Badge */}
-                    {discount > 0 && (
-                      <View style={styles.dealTileBadge}>
-                        <Text style={styles.dealTileBadgeText}>
-                          {discount}% off
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* Deal Text */}
-                    <Text style={styles.dealTileText} numberOfLines={2}>
-                      {dealText}
-                    </Text>
-                  </TouchableOpacity>
+                    product={product}
+                    variant="compact"
+                    dealLabel={dealText}
+                  />
                 );
               })}
             </View>
@@ -341,65 +304,13 @@ export default function HomeScreen() {
         keyExtractor={(item) => item.id}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.bestSellerProductList}
-        renderItem={({ item, index }) => {
-          const price = Number(item.price) || 0;
-          const mrp = Number(item.mrp || item.originalPrice || item.price);
-          const rating = Number(item.rating) || 4.5;
-          const image = item.images?.[0] || item.image || "";
-
-          return (
-            <TouchableOpacity
-              activeOpacity={0.92}
-              style={styles.bestSellerCard}
-              onPress={() =>
-                navigation.navigate("ProductDetails", { product: item })
-              }
-            >
-              <View style={styles.bestSellerBadge}>
-                <Text style={styles.bestSellerBadgeText}>
-                  #{index + 1} BEST SELLER
-                </Text>
-              </View>
-
-              <View style={styles.bestSellerImageBox}>
-                {image ? (
-                  <Image
-                    source={{ uri: image }}
-                    style={styles.bestSellerImage}
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <MaterialIcons name="image" size={48} color="#CBD5D0" />
-                )}
-              </View>
-
-              <Text style={styles.bestSellerName} numberOfLines={2}>
-                {item.name}
-              </Text>
-
-              <View style={styles.bestSellerRatingRow}>
-                <View style={styles.bestSellerRating}>
-                  <Text style={styles.bestSellerRatingText}>
-                    {rating.toFixed(1)}
-                  </Text>
-                  <MaterialIcons name="star" size={11} color="#FFFFFF" />
-                </View>
-                <Text style={styles.bestSellerPopular}>Popular</Text>
-              </View>
-
-              <View style={styles.bestSellerPriceRow}>
-                <Text style={styles.bestSellerPrice}>
-                  ₹{price.toLocaleString("en-IN")}
-                </Text>
-                {mrp > price && (
-                  <Text style={styles.bestSellerMrp}>
-                    ₹{mrp.toLocaleString("en-IN")}
-                  </Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        }}
+        renderItem={({ item, index }) => (
+          <ProductCard
+            product={item}
+            variant="featured"
+            rankBadge={`#${index + 1} BEST SELLER`}
+          />
+        )}
       />
     );
   }
@@ -707,7 +618,7 @@ const styles = StyleSheet.create({
   seeAll: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#078A3D",
+    color: "#16A34A",
   },
 
   // Header
@@ -725,7 +636,7 @@ const styles = StyleSheet.create({
   brandLogo: {
     fontSize: 27,
     fontWeight: "900",
-    color: "#078A3D",
+    color: "#16A34A",
     letterSpacing: 1,
   },
   brandTagline: {
@@ -856,7 +767,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 5,
     borderRadius: 3,
-    backgroundColor: "#078A3D",
+    backgroundColor: "#16A34A",
     marginHorizontal: 3,
   },
   heroDot: {
@@ -1044,7 +955,7 @@ const styles = StyleSheet.create({
   bestSellerRating: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#078A3D",
+    backgroundColor: "#16A34A",
     borderRadius: 4,
     paddingHorizontal: 5,
     paddingVertical: 3,
