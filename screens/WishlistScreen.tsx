@@ -6,7 +6,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   TouchableOpacity,
   Alert,
 } from "react-native";
@@ -29,6 +28,8 @@ import {
 } from "../services/productService";
 
 import { MaterialIcons } from "@expo/vector-icons";
+
+import ListItemCard from "../components/ListItemCard";
 
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 
@@ -375,164 +376,97 @@ async function addWishlistItemToCart(
 
     return (
 
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.85}
+      <ListItemCard
+        image={item.image || ""}
+        title={item.name || ""}
+        price={price}
+        mrp={mrp}
+        discountPercent={discount}
         onPress={() =>
           openProduct(item)
         }
-      >
+        actions={
 
-        <View
-          style={styles.imageContainer}
-        >
+          <>
 
-          {item.image ? (
+            {priceDrops[item.id] > 0 && (
 
-            <Image
-              source={{
-                uri: item.image,
-              }}
-              style={styles.image}
-              resizeMode="contain"
-            />
+              <View style={styles.priceDropBadge}>
 
-          ) : (
+                <MaterialIcons
+                  name="trending-down"
+                  size={12}
+                  color="#16A34A"
+                />
 
-            <MaterialIcons
-              name="image"
-              size={42}
-              color="#CCCCCC"
-            />
+                <Text style={styles.priceDropText}>
+                  Price dropped by ₹{priceDrops[item.id]}
+                </Text>
 
-          )}
-
-        </View>
-
-
-        <View
-          style={styles.details}
-        >
-
-          <Text
-            style={styles.productName}
-            numberOfLines={2}
-          >
-            {item.name ||
-              "Product"}
-          </Text>
-
-
-          <View
-            style={styles.priceRow}
-          >
-
-            <Text
-              style={styles.price}
-            >
-              ₹{price}
-            </Text>
-
-
-            {mrp > price && (
-
-              <Text
-                style={styles.mrp}
-              >
-                ₹{mrp}
-              </Text>
+              </View>
 
             )}
 
-          </View>
-
-
-          {discount > 0 && (
-
-            <Text
-              style={styles.discount}
-            >
-              {discount}% OFF
-            </Text>
-
-          )}
-
-          {priceDrops[item.id] > 0 && (
-
-            <View style={styles.priceDropBadge}>
-
-              <MaterialIcons
-                name="trending-down"
-                size={12}
-                color="#16A34A"
-              />
-
-              <Text style={styles.priceDropText}>
-                Price dropped by ₹{priceDrops[item.id]}
-              </Text>
-
-            </View>
-
-          )}
-<TouchableOpacity
-  style={
-    styles.addCartButton
-  }
-  activeOpacity={0.8}
-  onPress={() =>
-    addWishlistItemToCart(
-      item
-    )
-}
->
-
-  <MaterialIcons
-    name="shopping-cart"
-    size={18}
-    color="#FFFFFF"
-  />
-
-  <Text
-    style={
-      styles.addCartText
-    }
-  >
-    Add to Cart
-  </Text>
-
-</TouchableOpacity>
-
-          <TouchableOpacity
-            style={
-              styles.removeButton
-            }
-            activeOpacity={0.8}
-            onPress={() =>
-              removeFromWishlist(
-                item.id
-              )
-            }
-          >
-
-            <MaterialIcons
-              name="favorite"
-              size={18}
-              color="#E53935"
-            />
-
-            <Text
+            <TouchableOpacity
               style={
-                styles.removeText
+                styles.addCartButton
+              }
+              activeOpacity={0.8}
+              onPress={() =>
+                addWishlistItemToCart(
+                  item
+                )
               }
             >
-              Remove
-            </Text>
 
-          </TouchableOpacity>
+              <MaterialIcons
+                name="shopping-cart"
+                size={18}
+                color="#FFFFFF"
+              />
 
-        </View>
+              <Text
+                style={
+                  styles.addCartText
+                }
+              >
+                Add to Cart
+              </Text>
 
-      </TouchableOpacity>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={
+                styles.removeButton
+              }
+              activeOpacity={0.8}
+              onPress={() =>
+                removeFromWishlist(
+                  item.id
+                )
+              }
+            >
+
+              <MaterialIcons
+                name="favorite"
+                size={18}
+                color="#E53935"
+              />
+
+              <Text
+                style={
+                  styles.removeText
+                }
+              >
+                Remove
+              </Text>
+
+            </TouchableOpacity>
+
+          </>
+
+        }
+      />
 
     );
 
@@ -758,78 +692,6 @@ const styles =
     },
 
 
-    card: {
-      backgroundColor: "#FFFFFF",
-      borderRadius: 10,
-      marginBottom: 10,
-      padding: 10,
-      flexDirection: "row",
-      borderWidth: 1,
-      borderColor: "#EEEEEE",
-    },
-
-
-    imageContainer: {
-      width: 105,
-      height: 105,
-      borderRadius: 8,
-      backgroundColor: "#F8F8F8",
-      alignItems: "center",
-      justifyContent: "center",
-      overflow: "hidden",
-    },
-
-
-    image: {
-      width: "100%",
-      height: "100%",
-    },
-
-
-    details: {
-      flex: 1,
-      marginLeft: 11,
-      justifyContent: "center",
-    },
-
-
-    productName: {
-      fontSize: 14,
-      fontWeight: "700",
-      color: "#222222",
-      lineHeight: 19,
-    },
-
-
-    priceRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginTop: 7,
-    },
-
-
-    price: {
-      fontSize: 17,
-      fontWeight: "800",
-      color: "#16A34A",
-    },
-
-
-    mrp: {
-      fontSize: 11,
-      color: "#888888",
-      textDecorationLine:
-        "line-through",
-      marginLeft: 7,
-    },
-
-
-    discount: {
-      fontSize: 11,
-      fontWeight: "700",
-      color: "#C2185B",
-      marginTop: 4,
-    },
 addCartButton: {
   alignSelf: "flex-start",
   flexDirection: "row",

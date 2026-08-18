@@ -9,7 +9,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   TouchableOpacity,
   Alert,
 } from "react-native";
@@ -41,6 +40,8 @@ import {
 import {
   RootStackParamList,
 } from "../navigation/AppNavigator";
+
+import ListItemCard from "../components/ListItemCard";
 
 
 type NavigationProp =
@@ -291,121 +292,19 @@ export default function RecentlyViewedScreen() {
 
     return (
 
-      <TouchableOpacity
-        style={
-          styles.card
-        }
-        activeOpacity={0.85}
+      <ListItemCard
+        image={item.image || ""}
+        title={item.name || "Product"}
+        price={price}
+        mrp={mrp}
+        discountPercent={discount}
+        vendor={item.vendorName || "YOMICO Seller"}
         onPress={() =>
           openProduct(
             item
           )
         }
-      >
-
-        <View
-          style={
-            styles.imageContainer
-          }
-        >
-
-          {item.image ? (
-
-            <Image
-              source={{
-                uri:
-                  item.image,
-              }}
-              style={
-                styles.image
-              }
-              resizeMode="contain"
-            />
-
-          ) : (
-
-            <MaterialIcons
-              name="image"
-              size={42}
-              color="#CCCCCC"
-            />
-
-          )}
-
-        </View>
-
-
-        <View
-          style={
-            styles.details
-          }
-        >
-
-          <Text
-            style={
-              styles.productName
-            }
-            numberOfLines={2}
-          >
-            {item.name ||
-              "Product"}
-          </Text>
-
-
-          <View
-            style={
-              styles.priceRow
-            }
-          >
-
-            <Text
-              style={
-                styles.price
-              }
-            >
-              ₹{price}
-            </Text>
-
-
-            {mrp > price && (
-
-              <Text
-                style={
-                  styles.mrp
-                }
-              >
-                ₹{mrp}
-              </Text>
-
-            )}
-
-          </View>
-
-
-          {discount > 0 && (
-
-            <Text
-              style={
-                styles.discount
-              }
-            >
-              {discount}% OFF
-            </Text>
-
-          )}
-
-
-          <Text
-            style={
-              styles.vendor
-            }
-            numberOfLines={1}
-          >
-            Sold by{" "}
-            {item.vendorName ||
-              "YOMICO Seller"}
-          </Text>
-
+        actions={
 
           <View
             style={
@@ -429,9 +328,8 @@ export default function RecentlyViewedScreen() {
 
           </View>
 
-        </View>
-
-      </TouchableOpacity>
+        }
+      />
 
     );
 
@@ -626,97 +524,6 @@ const styles =
     list: {
       padding: 10,
       paddingBottom: 25,
-    },
-
-
-    card: {
-      backgroundColor:
-        "#FFFFFF",
-      borderRadius: 10,
-      marginBottom: 10,
-      padding: 10,
-      flexDirection:
-        "row",
-      borderWidth: 1,
-      borderColor:
-        "#EEEEEE",
-    },
-
-
-    imageContainer: {
-      width: 105,
-      height: 105,
-      borderRadius: 8,
-      backgroundColor:
-        "#F8F8F8",
-      alignItems:
-        "center",
-      justifyContent:
-        "center",
-      overflow:
-        "hidden",
-    },
-
-
-    image: {
-      width: "100%",
-      height: "100%",
-    },
-
-
-    details: {
-      flex: 1,
-      marginLeft: 11,
-      justifyContent:
-        "center",
-    },
-
-
-    productName: {
-      fontSize: 14,
-      fontWeight: "700",
-      color: "#222222",
-      lineHeight: 19,
-    },
-
-
-    priceRow: {
-      flexDirection:
-        "row",
-      alignItems:
-        "center",
-      marginTop: 7,
-    },
-
-
-    price: {
-      fontSize: 17,
-      fontWeight: "800",
-      color: "#16A34A",
-    },
-
-
-    mrp: {
-      fontSize: 11,
-      color: "#888888",
-      textDecorationLine:
-        "line-through",
-      marginLeft: 7,
-    },
-
-
-    discount: {
-      fontSize: 11,
-      fontWeight: "700",
-      color: "#C2185B",
-      marginTop: 4,
-    },
-
-
-    vendor: {
-      fontSize: 10,
-      color: "#777777",
-      marginTop: 5,
     },
 
 

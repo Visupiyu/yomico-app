@@ -4,7 +4,6 @@ import {
   View,
   Text,
   FlatList,
-  Image,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
@@ -31,6 +30,8 @@ import {
 import {
   RootStackParamList,
 } from "../navigation/AppNavigator";
+
+import ListItemCard from "../components/ListItemCard";
 
 import {
   getShippingSettings,
@@ -231,121 +232,99 @@ export default function CartScreen() {
           item,
         }) => (
 
-          <View
-            style={styles.card}
-          >
+          <ListItemCard
+            image={item.image}
+            title={item.name}
+            price={item.price}
+            actions={
 
-            <Image
-              source={{
-                uri: item.image,
-              }}
-              style={styles.image}
-            />
+              <>
 
-
-            <View
-              style={styles.info}
-            >
-
-              <Text
-                numberOfLines={2}
-                style={styles.name}
-              >
-                {item.name}
-              </Text>
-
-
-              <Text
-                style={styles.price}
-              >
-                ₹{item.price}
-              </Text>
-
-
-              <View
-                style={styles.qtyRow}
-              >
-
-                <TouchableOpacity
-                  onPress={() =>
-                    decrease(item)
-                  }
-                  style={
-                    styles.qtyButton
-                  }
+                <View
+                  style={styles.qtyRow}
                 >
 
-                  <MaterialIcons
-                    name="remove"
-                    size={17}
-                    color="#FFFFFF"
-                  />
+                  <TouchableOpacity
+                    onPress={() =>
+                      decrease(item)
+                    }
+                    style={
+                      styles.qtyButton
+                    }
+                  >
 
-                </TouchableOpacity>
+                    <MaterialIcons
+                      name="remove"
+                      size={17}
+                      color="#FFFFFF"
+                    />
 
+                  </TouchableOpacity>
 
-                <Text
-                  style={styles.qty}
-                >
-                  {item.quantity}
-                </Text>
-
-
-                <TouchableOpacity
-                  onPress={() =>
-                    increase(item)
-                  }
-                  style={
-                    styles.qtyButtonGreen
-                  }
-                >
-
-                  <MaterialIcons
-                    name="add"
-                    size={17}
-                    color="#FFFFFF"
-                  />
-
-                </TouchableOpacity>
-
-              </View>
-
-
-              <View style={styles.itemActionsRow}>
-
-                <TouchableOpacity
-                  onPress={() =>
-                    remove(item)
-                  }
-                >
 
                   <Text
-                    style={styles.remove}
+                    style={styles.qty}
                   >
-                    Remove
+                    {item.quantity}
                   </Text>
 
-                </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() =>
-                    saveForLater(item)
-                  }
-                >
-
-                  <Text
-                    style={styles.saveForLater}
+                  <TouchableOpacity
+                    onPress={() =>
+                      increase(item)
+                    }
+                    style={
+                      styles.qtyButtonGreen
+                    }
                   >
-                    Save for later
-                  </Text>
 
-                </TouchableOpacity>
+                    <MaterialIcons
+                      name="add"
+                      size={17}
+                      color="#FFFFFF"
+                    />
 
-              </View>
+                  </TouchableOpacity>
 
-            </View>
+                </View>
 
-          </View>
+
+                <View style={styles.itemActionsRow}>
+
+                  <TouchableOpacity
+                    onPress={() =>
+                      remove(item)
+                    }
+                  >
+
+                    <Text
+                      style={styles.remove}
+                    >
+                      Remove
+                    </Text>
+
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() =>
+                      saveForLater(item)
+                    }
+                  >
+
+                    <Text
+                      style={styles.saveForLater}
+                    >
+                      Save for later
+                    </Text>
+
+                  </TouchableOpacity>
+
+                </View>
+
+              </>
+
+            }
+          />
 
         )}
 
@@ -476,34 +455,12 @@ export default function CartScreen() {
 
                 {savedItems.map((item) => (
 
-                  <View
+                  <ListItemCard
                     key={item.id}
-                    style={styles.card}
-                  >
-
-                    <Image
-                      source={{
-                        uri: item.image,
-                      }}
-                      style={styles.image}
-                    />
-
-                    <View
-                      style={styles.info}
-                    >
-
-                      <Text
-                        numberOfLines={2}
-                        style={styles.name}
-                      >
-                        {item.name}
-                      </Text>
-
-                      <Text
-                        style={styles.price}
-                      >
-                        ₹{item.price}
-                      </Text>
+                    image={item.image}
+                    title={item.name}
+                    price={item.price}
+                    actions={
 
                       <View style={styles.itemActionsRow}>
 
@@ -537,9 +494,8 @@ export default function CartScreen() {
 
                       </View>
 
-                    </View>
-
-                  </View>
+                    }
+                  />
 
                 ))}
 
@@ -574,46 +530,6 @@ const styles =
       color: "#222",
       paddingHorizontal: 14,
       paddingVertical: 12,
-    },
-
-
-    card: {
-      flexDirection: "row",
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderBottomWidth: 1,
-      borderColor: "#EEEEEE",
-      backgroundColor: "#FFFFFF",
-    },
-
-
-    image: {
-      width: 80,
-      height: 80,
-      borderRadius: 8,
-      backgroundColor: "#F5F5F5",
-    },
-
-
-    info: {
-      flex: 1,
-      marginLeft: 11,
-    },
-
-
-    name: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: "#222",
-      lineHeight: 18,
-    },
-
-
-    price: {
-      marginTop: 4,
-      color: "#16A34A",
-      fontWeight: "700",
-      fontSize: 15,
     },
 
 
