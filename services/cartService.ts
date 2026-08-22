@@ -28,11 +28,25 @@ export async function addToCart(product: any) {
 
   const snapshot = await getDocs(q);
 
-  if (!snapshot.empty) {
-    const cartDoc = snapshot.docs[0];
+  const selectedVariants =
+    product.selectedVariants &&
+    Object.keys(product.selectedVariants).length > 0
+      ? product.selectedVariants
+      : null;
 
-    await updateDoc(cartDoc.ref, {
-      quantity: (cartDoc.data().quantity || 1) + 1,
+  // A product with variants (e.g. size/color) needs its own cart line
+  // per variant combo — merging "Size L" into an existing "Size S" line
+  // would silently swap out the size the customer already chose.
+  const existingDoc = snapshot.docs.find(
+    (item) =>
+      JSON.stringify(item.data().selectedVariants || null) ===
+      JSON.stringify(selectedVariants)
+  );
+
+  if (existingDoc) {
+
+    await updateDoc(existingDoc.ref, {
+      quantity: (existingDoc.data().quantity || 1) + 1,
       savedForLater: false,
     });
 
@@ -52,6 +66,7 @@ export async function addToCart(product: any) {
     vendorId: product.vendorId,
     vendorName: product.vendorName,
     savedForLater: false,
+    ...(selectedVariants ? { selectedVariants } : {}),
   });
 }
 

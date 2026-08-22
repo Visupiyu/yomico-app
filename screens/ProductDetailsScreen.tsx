@@ -261,7 +261,7 @@ saveRecentlyViewed(
 
     try {
 
-      await addToCart(product);
+      await addToCart({ ...product, selectedVariants });
 
       navigation.navigate("Checkout");
 
@@ -300,7 +300,7 @@ saveRecentlyViewed(
 
     try {
 
-      await addToCart(product);
+      await addToCart({ ...product, selectedVariants });
 
       Alert.alert(
         "Success",

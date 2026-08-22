@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 
 import {
   SafeAreaView,
@@ -23,7 +23,7 @@ import { auth, db } from "../firebase/firebase";
 
 import { MaterialIcons } from "@expo/vector-icons";
 
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 
 import {
   NativeStackNavigationProp,
@@ -60,11 +60,16 @@ export default function ProfileScreen() {
     useState(true);
 
 
-  useEffect(() => {
+  // Profile tab stays mounted when switching tabs, so a mount-only
+  // effect would keep showing the old name/mobile after editing them
+  // in Edit Profile and navigating back here.
+  useFocusEffect(
+    useCallback(() => {
 
-    loadProfile();
+      loadProfile();
 
-  }, []);
+    }, [])
+  );
 
 
   async function loadProfile() {

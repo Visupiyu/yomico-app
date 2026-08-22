@@ -29,6 +29,8 @@ import {
   getDocs,
   query,
   where,
+  runTransaction,
+  increment,
 } from "firebase/firestore";
 
 import {
@@ -55,6 +57,17 @@ type OrderDetailsRouteProp =
     RootStackParamList,
     "OrderDetails"
   >;
+
+
+function formatVariants(item: any) {
+  if (!item.selectedVariants) return null;
+
+  const parts = Object.entries(item.selectedVariants).map(
+    ([label, value]) => `${label}: ${value}`
+  );
+
+  return parts.length > 0 ? parts.join(", ") : null;
+}
 
 
 export default function OrderDetailsScreen() {
@@ -254,6 +267,9 @@ if (
     );
 
     setReviewPhotos([]);
+    setReviewText("");
+    setReviewRating(0);
+    setReviewProduct(null);
 
 
   } catch (error) {
@@ -367,15 +383,80 @@ async function cancelOrder() {
         ? "Pending"
         : order.paymentStatus;
 
-    await updateDoc(
-      doc(
-        db,
-        "orders",
-        order.id
-      ),
-      {
-        status: "Cancelled",
-        paymentStatus: updatedPaymentStatus,
+    /*
+     * Cancelling must give back the stock/sales that checkout
+     * reserved for this order — otherwise a cancelled order leaves
+     * the product permanently oversold-short. Mirrors the
+     * reserve/rollback transaction in CheckoutScreen. Runs as one
+     * transaction with the order-status update so a double-tap or a
+     * second device can't restore the same stock twice.
+     */
+
+    await runTransaction(
+      db,
+      async (transaction) => {
+
+        const orderRef =
+          doc(db, "orders", order.id);
+
+        const orderSnap =
+          await transaction.get(orderRef);
+
+        if (
+          !orderSnap.exists() ||
+          orderSnap.data().status === "Cancelled"
+        ) {
+          return;
+        }
+
+        const items =
+          (order.items || []) as any[];
+
+        const productRefs =
+          items.map((item) =>
+            doc(db, "products", item.productId || item.id)
+          );
+
+        // Firestore transactions require every get() before any
+        // write, so the product docs are fetched here (a deleted
+        // product must not block the cancellation itself).
+        const productSnaps =
+          await Promise.all(
+            productRefs.map((productRef) =>
+              transaction.get(productRef)
+            )
+          );
+
+        for (
+          let i = 0;
+          i < items.length;
+          i++
+        ) {
+
+          const item = items[i];
+
+          if (
+            !(item.productId || item.id) ||
+            !productSnaps[i].exists()
+          ) {
+            continue;
+          }
+
+          transaction.update(
+            productRefs[i],
+            {
+              stock: increment(Number(item.quantity) || 0),
+              sales: increment(-(Number(item.quantity) || 0)),
+            }
+          );
+
+        }
+
+        transaction.update(orderRef, {
+          status: "Cancelled",
+          paymentStatus: updatedPaymentStatus,
+        });
+
       }
     );
 
@@ -780,6 +861,18 @@ async function cancelOrder() {
                   >
                     {item.name}
                   </Text>
+
+                  {formatVariants(item) && (
+
+                    <Text
+                      style={
+                        styles.itemVariant
+                      }
+                    >
+                      {formatVariants(item)}
+                    </Text>
+
+                  )}
 
 
                   <Text
@@ -1419,6 +1512,13 @@ const styles =
       fontWeight: "700",
       color: "#222222",
       lineHeight: 17,
+    },
+
+
+    itemVariant: {
+      fontSize: 10,
+      color: "#666666",
+      marginTop: 3,
     },
 
 

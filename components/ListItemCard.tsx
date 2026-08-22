@@ -27,6 +27,11 @@ export type ListItemCardProps = {
 
   price: number;
 
+  // Optional — short one-line detail rendered under the title (e.g.
+  // "Size: L, Color: Red" for a variant product). Omit when the item
+  // has no variants to show.
+  subtitle?: string;
+
   // Optional display fields — omit entirely on screens that don't
   // show them. Cart passes none of these today.
   mrp?: number;
@@ -55,6 +60,7 @@ export default function ListItemCard({
   image,
   title,
   price,
+  subtitle,
   mrp,
   discountPercent,
   vendor,
@@ -126,6 +132,19 @@ export default function ListItemCard({
         >
           {title || "Product"}
         </Text>
+
+        {subtitle ? (
+
+          <Text
+            style={
+              styles.subtitle
+            }
+            numberOfLines={1}
+          >
+            {subtitle}
+          </Text>
+
+        ) : null}
 
 
         {/* PRICE */}
@@ -286,6 +305,13 @@ const styles =
       fontWeight: "700",
       color: "#222222",
       lineHeight: 19,
+    },
+
+
+    subtitle: {
+      fontSize: 11,
+      color: "#777777",
+      marginTop: 2,
     },
 
 

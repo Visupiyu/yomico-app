@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 import {
   View,
@@ -21,7 +21,7 @@ import {
 
 import { MaterialIcons } from "@expo/vector-icons";
 
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 
 import {
   NativeStackNavigationProp,
@@ -40,6 +40,17 @@ import {
   STANDARD_SHIPPING_CHARGE,
   ShippingSettings,
 } from "../services/shippingService";
+
+
+function formatVariants(item: any) {
+  if (!item.selectedVariants) return undefined;
+
+  const parts = Object.entries(item.selectedVariants).map(
+    ([label, value]) => `${label}: ${value}`
+  );
+
+  return parts.length > 0 ? parts.join(", ") : undefined;
+}
 
 
 export default function CartScreen() {
@@ -66,9 +77,17 @@ export default function CartScreen() {
 
 
   useEffect(() => {
-    loadCart();
     getShippingSettings().then(setShippingSettings);
   }, []);
+
+  // Cart tabs stay mounted when the user switches tabs, so a plain
+  // mount-only effect would keep showing stale items after adding to
+  // cart from another screen (e.g. Product Details) and tapping Cart.
+  useFocusEffect(
+    useCallback(() => {
+      loadCart();
+    }, [])
+  );
 
 
   async function loadCart() {
@@ -236,6 +255,7 @@ export default function CartScreen() {
             image={item.image}
             title={item.name}
             price={item.price}
+            subtitle={formatVariants(item)}
             actions={
 
               <>
@@ -460,6 +480,7 @@ export default function CartScreen() {
                     image={item.image}
                     title={item.name}
                     price={item.price}
+                    subtitle={formatVariants(item)}
                     actions={
 
                       <View style={styles.itemActionsRow}>

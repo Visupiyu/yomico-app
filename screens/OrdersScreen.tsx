@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 
 import {
   SafeAreaView,
@@ -19,7 +19,7 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase/firebase";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 
 import {
   NativeStackNavigationProp,
@@ -48,9 +48,15 @@ const navigation =
       "Orders"
     >
   >();
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  // React Navigation reuses this screen instance instead of remounting
+  // it when navigated back to (e.g. after cancelling an order on
+  // OrderDetails and pressing back), so a mount-only load would keep
+  // showing the pre-cancel status. Reload on every focus instead.
+  useFocusEffect(
+    useCallback(() => {
+      loadOrders();
+    }, [])
+  );
 
 
   async function loadOrders() {
