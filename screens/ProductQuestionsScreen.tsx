@@ -135,6 +135,14 @@ export default function ProductQuestionsScreen() {
 
   async function submitQuestion() {
 
+    // The button's disabled state only lands after this render
+    // commits, so a fast double-tap can call this handler twice
+    // before that happens — without this guard that submits the
+    // same question as two separate documents.
+    if (submitting) {
+      return;
+    }
+
     const user =
       auth.currentUser;
 
