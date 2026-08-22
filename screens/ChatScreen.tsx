@@ -93,6 +93,24 @@ export default function ChatScreen() {
 
   async function createCustomerChat() {
 
+    // "Chat with Seller" on Product Details has no login gate, so a
+    // logged-out customer reaches this screen and createChat() throws.
+    // Checking here first avoids surfacing that as a generic "Unable
+    // to start chat" error when the real, actionable cause is that
+    // they aren't logged in.
+    if (!auth.currentUser) {
+
+      Alert.alert(
+        "Login Required",
+        "Please login before chatting with the seller."
+      );
+
+      setLoading(false);
+
+      return;
+
+    }
+
     try {
 
       const id =

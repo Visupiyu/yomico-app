@@ -118,7 +118,15 @@ export default function HomeScreen() {
   async function loadDefaultAddress() {
     const user = auth.currentUser;
 
-    if (!user) return;
+    // Home never unmounts, so its state survives logout and any later
+    // login on the same device session. Without clearing here, the
+    // "Deliver to" line kept showing the previous customer's address
+    // after logout, and would keep showing it for a new customer who
+    // has no default address of their own.
+    if (!user) {
+      setDefaultAddress(null);
+      return;
+    }
 
     try {
       const q = query(
@@ -129,9 +137,7 @@ export default function HomeScreen() {
 
       const snapshot = await getDocs(q);
 
-      if (!snapshot.empty) {
-        setDefaultAddress(snapshot.docs[0].data());
-      }
+      setDefaultAddress(!snapshot.empty ? snapshot.docs[0].data() : null);
     } catch (error) {
       console.log("Default address loading error:", error);
     }
