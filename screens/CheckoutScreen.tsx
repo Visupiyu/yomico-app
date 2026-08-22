@@ -664,13 +664,46 @@ gstAmount:
           db,
           async (transaction) => {
 
+            // A customer can have multiple cart lines for the same
+            // product — one per variant combo (cartService.addToCart
+            // gives each variant its own line so a size/color choice
+            // isn't lost). Validating and decrementing per cart line
+            // against the product's full live stock, independently,
+            // let combined demand across those lines exceed stock
+            // while each line's own check still passed (e.g. two
+            // variant lines of qty 3 each against 5 in stock both
+            // read "5 < 3 is false" and the transaction applied both
+            // -3 decrements, leaving stock at -1). Aggregate the
+            // quantity needed per product first, then validate and
+            // reserve against that combined total.
+
+            const quantityByProductId =
+              new Map<string, number>();
+
+            for (
+              const item of cartItems as any[]
+            ) {
+
+              const current =
+                quantityByProductId.get(item.productId) || 0;
+
+              quantityByProductId.set(
+                item.productId,
+                current + Number(item.quantity)
+              );
+
+            }
+
+            const productIds =
+              [...quantityByProductId.keys()];
+
             const productRefs =
-              cartItems.map(
-                (item: any) =>
+              productIds.map(
+                (productId) =>
                   doc(
                     db,
                     "products",
-                    item.productId
+                    productId
                   )
               );
 
@@ -686,17 +719,28 @@ gstAmount:
 
             for (
               let i = 0;
-              i < cartItems.length;
+              i < productIds.length;
               i++
             ) {
 
-              const item = cartItems[i] as any;
+              const productId = productIds[i];
               const snap = productSnaps[i];
+
+              const requiredQuantity =
+                quantityByProductId.get(productId) || 0;
+
+              const matchingItem =
+                (cartItems as any[]).find(
+                  (item) => item.productId === productId
+                );
+
+              const productLabel =
+                matchingItem?.name || "This product";
 
               if (!snap.exists()) {
 
                 throw new Error(
-                  `${item.name || "This product"} is no longer available.`
+                  `${productLabel} is no longer available.`
                 );
 
               }
@@ -709,7 +753,7 @@ gstAmount:
               ) {
 
                 throw new Error(
-                  `${item.name || "This product"} is no longer available.`
+                  `${productLabel} is no longer available.`
                 );
 
               }
@@ -721,11 +765,11 @@ gstAmount:
 
               if (
                 availableStock <
-                Number(item.quantity)
+                requiredQuantity
               ) {
 
                 throw new Error(
-                  `Only ${availableStock} left for ${item.name || "this product"}.`
+                  `Only ${availableStock} left for ${productLabel}.`
                 );
 
               }
@@ -734,20 +778,21 @@ gstAmount:
 
             for (
               let i = 0;
-              i < cartItems.length;
+              i < productIds.length;
               i++
             ) {
 
-              const item = cartItems[i] as any;
+              const requiredQuantity =
+                quantityByProductId.get(productIds[i]) || 0;
 
               transaction.update(
                 productRefs[i],
                 {
                   stock: increment(
-                    -Number(item.quantity)
+                    -requiredQuantity
                   ),
                   sales: increment(
-                    Number(item.quantity)
+                    requiredQuantity
                   ),
                 }
               );
