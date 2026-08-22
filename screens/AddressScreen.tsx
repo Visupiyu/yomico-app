@@ -63,6 +63,7 @@ type Address = {
   city?: string;
   state?: string;
   pincode?: string;
+  isDefault?: boolean;
 };
 
 
@@ -344,6 +345,11 @@ isDefault: addresses.length === 0,
 
     try {
 
+      const removedAddress =
+        addresses.find(
+          (item) => item.id === addressId
+        );
+
       await deleteDoc(
         doc(
           db,
@@ -353,12 +359,56 @@ isDefault: addresses.length === 0,
       );
 
 
+      const remaining =
+        addresses.filter(
+          (item) =>
+            item.id !== addressId
+        );
+
+
+      // Deleting the default address left none flagged as default —
+      // Checkout's auto-fill picks the first address after sorting by
+      // isDefault, so with no default set it would silently pre-fill
+      // whatever address Firestore happens to return first instead of
+      // a deliberately chosen one. Promote the next remaining address
+      // so there's always a default when one exists.
+      if (
+        removedAddress?.isDefault &&
+        remaining.length > 0
+      ) {
+
+        try {
+
+          await updateDoc(
+            doc(
+              db,
+              "addresses",
+              remaining[0].id
+            ),
+            {
+              isDefault: true,
+            }
+          );
+
+          remaining[0] = {
+            ...remaining[0],
+            isDefault: true,
+          };
+
+        } catch (promoteError) {
+
+          console.log(
+            "Default address promotion error:",
+            promoteError
+          );
+
+        }
+
+      }
+
+
       setAddresses(
-        (current) =>
-          current.filter(
-            (item) =>
-              item.id !== addressId
-          )
+        remaining
       );
 
 
