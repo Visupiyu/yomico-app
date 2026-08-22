@@ -16,7 +16,6 @@ import {
 
 import {
   collection,
-  addDoc,
   serverTimestamp,
   getDocs,
   query,
@@ -409,6 +408,16 @@ setCartItemsTotalMRP(
 
   async function placeOrder() {
 
+    // The Place Order button disables on `loading`, but that's a
+    // state update — two taps close enough together (a double-tap)
+    // can both fire onPress before the re-render commits, each
+    // reading `loading` as still false and creating its own order.
+    // This synchronous check inside the handler closes that window;
+    // the disabled/opacity UI is just the visual reflection of it.
+    if (loading) {
+      return;
+    }
+
     if (
       !name.trim() ||
       !mobile.trim() ||
@@ -631,11 +640,23 @@ gstAmount:
 
 
       /*
-       * Atomically reserve stock for every product in this order
-       * before creating it — mirrors yogi-mart-next's checkout
-       * transaction so mobile orders can't oversell or leave
-       * stock/sales inconsistent with what was actually sold.
+       * Reserve stock and create the order in the SAME transaction —
+       * mirrors yogi-mart-next's checkout transaction so mobile orders
+       * can't oversell, and Firestore guarantees the stock reservation
+       * and the order document either both commit or neither does.
+       * (Previously these were two separate steps with a manual
+       * best-effort rollback if order creation failed; that rollback
+       * could itself fail and leave stock permanently decremented with
+       * no order to show for it.)
        */
+
+      const orderRef =
+        doc(
+          collection(
+            db,
+            "orders"
+          )
+        );
 
       try {
 
@@ -733,82 +754,36 @@ gstAmount:
 
             }
 
+            transaction.set(
+              orderRef,
+              orderData
+            );
+
           }
         );
 
-      } catch (stockError: any) {
+      } catch (orderError: any) {
 
-        Alert.alert(
-          "Stock Unavailable",
-          stockError?.message ||
-            "One or more items in your cart are no longer available in the requested quantity."
-        );
+        // Validation failures inside the transaction are thrown as
+        // plain Errors (no `.code`); real Firestore/network failures
+        // come back as FirebaseError with a `.code`. Only the former
+        // has a message safe and useful to show the customer directly.
+        if (
+          orderError instanceof Error &&
+          !("code" in orderError)
+        ) {
 
-        return;
-
-      }
-
-
-      try {
-
-        await addDoc(
-          collection(
-            db,
-            "orders"
-          ),
-          orderData
-        );
-
-      } catch (orderCreateError) {
-
-        /*
-         * Order was never created — restore the stock/sales we just
-         * reserved so it isn't permanently lost. Best-effort: if this
-         * rollback also fails, the outer catch below still reports the
-         * original order-creation failure to the customer.
-         */
-
-        try {
-
-          await runTransaction(
-            db,
-            async (transaction) => {
-
-              for (
-                const item of cartItems as any[]
-              ) {
-
-                transaction.update(
-                  doc(
-                    db,
-                    "products",
-                    item.productId
-                  ),
-                  {
-                    stock: increment(
-                      Number(item.quantity)
-                    ),
-                    sales: increment(
-                      -Number(item.quantity)
-                    ),
-                  }
-                );
-
-              }
-
-            }
+          Alert.alert(
+            "Stock Unavailable",
+            orderError.message ||
+              "One or more items in your cart are no longer available in the requested quantity."
           );
 
-        } catch (rollbackError) {
-
-          console.error(
-            "Stock rollback error:",
-            rollbackError
-          );
+          return;
 
         }
 
-        throw orderCreateError;
+        throw orderError;
 
       }
 

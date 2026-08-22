@@ -35,6 +35,10 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   async function handleLogin() {
+    if (loading) {
+      return;
+    }
+
     if (!email || !password) {
       Alert.alert("Missing Information", "Please enter email and password.");
       return;
@@ -149,8 +153,12 @@ export default function LoginScreen() {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.button}
+        style={[
+          styles.button,
+          loading && styles.buttonDisabled,
+        ]}
         onPress={handleLogin}
+        disabled={loading}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
@@ -235,6 +243,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
+  },
+
+  buttonDisabled: {
+    opacity: 0.6,
   },
 
   buttonText: {
