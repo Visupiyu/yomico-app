@@ -19,6 +19,8 @@ export async function createNotification({
     userId,
     title,
     message,
+    role: "customer",
+    type: "order",
     read: false,
     createdAt: serverTimestamp(),
   });
