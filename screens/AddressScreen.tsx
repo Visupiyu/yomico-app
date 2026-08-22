@@ -185,6 +185,14 @@ export default function AddressScreen() {
 
   async function saveAddress() {
 
+    // The Save button's disabled state only lands after this render
+    // commits, so a fast double-tap can call this handler twice
+    // before that happens — without this guard that adds the same
+    // address as two separate documents.
+    if (saving) {
+      return;
+    }
+
     const user =
       auth.currentUser;
 

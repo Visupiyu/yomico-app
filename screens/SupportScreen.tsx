@@ -251,6 +251,14 @@ const [
 
   async function createTicket() {
 
+    // The button's disabled state lands only after this render
+    // commits, so a fast double-tap can invoke this handler twice
+    // before that happens — without this guard that submits the
+    // same ticket content as two separate ticket documents.
+    if (submitting) {
+      return;
+    }
+
     const user =
       auth.currentUser;
 

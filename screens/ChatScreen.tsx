@@ -188,6 +188,14 @@ export default function ChatScreen() {
 
   async function handleSend() {
 
+    // The Send button's disabled state only lands after this render
+    // commits, so a fast double-tap can call this handler twice
+    // before that happens — without this guard that sends the same
+    // text as two separate message documents.
+    if (sending) {
+      return;
+    }
+
     const text =
       message.trim();
 

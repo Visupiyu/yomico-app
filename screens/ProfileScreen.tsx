@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 
 import {
   SafeAreaView,
@@ -59,6 +59,14 @@ export default function ProfileScreen() {
   const [loading, setLoading] =
     useState(true);
 
+  // The Profile tab never unmounts, so its name/email/mobile state
+  // survives logout and any later login on the same device session.
+  // Tracks whose data is currently displayed so a logout or a
+  // different customer logging in always clears it instead of
+  // leaking the previous customer's name/mobile onto the screen.
+  const displayedUid =
+    useRef<string | null>(null);
+
 
   // Profile tab stays mounted when switching tabs, so a mount-only
   // effect would keep showing the old name/mobile after editing them
@@ -80,6 +88,12 @@ export default function ProfileScreen() {
 
     if (!user) {
 
+      displayedUid.current = null;
+
+      setName("");
+      setEmail("");
+      setMobile("");
+
       setLoading(false);
 
       return;
@@ -88,6 +102,16 @@ export default function ProfileScreen() {
 
 
     try {
+
+      if (
+        displayedUid.current !==
+        user.uid
+      ) {
+
+        setName("");
+        setMobile("");
+
+      }
 
       setEmail(
         user.email || ""
@@ -123,6 +147,9 @@ export default function ProfileScreen() {
         );
 
       }
+
+      displayedUid.current =
+        user.uid;
 
     } catch (error) {
 
