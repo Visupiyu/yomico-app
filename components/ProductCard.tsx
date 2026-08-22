@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 import {
   View,
@@ -87,6 +87,10 @@ export default function ProductCard({
     product.stock !== undefined && stock <= 0;
 
 
+  const [addingToWishlist, setAddingToWishlist] =
+    useState(false);
+
+
   async function handleAddToCart() {
 
     if (isOutOfStock) {
@@ -134,6 +138,14 @@ export default function ProductCard({
 
   async function handleAddToWishlist() {
 
+    // The duplicate check below is a query-then-insert, not atomic —
+    // a fast double-tap could fire both requests before either's
+    // insert lands, passing the "not already in wishlist" check
+    // twice and creating two wishlist entries for the same product.
+    if (addingToWishlist) {
+      return;
+    }
+
     const user =
       auth.currentUser;
 
@@ -151,6 +163,8 @@ export default function ProductCard({
 
 
     try {
+
+      setAddingToWishlist(true);
 
       const wishlistQuery =
         query(
@@ -253,6 +267,10 @@ export default function ProductCard({
         "Error",
         "Unable to add product to wishlist."
       );
+
+    } finally {
+
+      setAddingToWishlist(false);
 
     }
 
@@ -375,13 +393,15 @@ export default function ProductCard({
         {/* WISHLIST */}
 
         <TouchableOpacity
-          style={
-            styles.wishlistButton
-          }
+          style={[
+            styles.wishlistButton,
+            addingToWishlist && styles.wishlistButtonDisabled,
+          ]}
           activeOpacity={0.75}
           onPress={
             handleAddToWishlist
           }
+          disabled={addingToWishlist}
         >
 
           <MaterialIcons
@@ -725,6 +745,11 @@ const styles =
         0.12,
 
       shadowRadius: 3,
+    },
+
+
+    wishlistButtonDisabled: {
+      opacity: 0.5,
     },
 
 

@@ -85,22 +85,13 @@ const [reviewCount, setReviewCount] =
   useState(0);
 
 const [selectedVariants, setSelectedVariants] =
-  useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = {};
-
-    if (Array.isArray(product.variants)) {
-      product.variants.forEach((variant: any) => {
-        if (variant.options?.length > 0) {
-          initial[variant.label] = variant.options[0];
-        }
-      });
-    }
-
-    return initial;
-  });
+  useState<Record<string, string>>({});
 
 const [similarProducts, setSimilarProducts] =
   useState<any[]>([]);
+
+const [addingToWishlist, setAddingToWishlist] =
+  useState(false);
 
 const stock = Number(product.stock ?? 1);
 const isOutOfStock = product.stock !== undefined && stock <= 0;
@@ -114,6 +105,36 @@ const isLowStock = product.stock !== undefined && stock > 0 && stock < 5;
     >
   >();
 useEffect(() => {
+
+  // This screen is reused (not remounted) when the customer taps a
+  // card in "You May Also Like" — that navigates to the already-
+  // focused ProductDetails route with new params, so React Navigation
+  // updates route.params in place instead of pushing a fresh screen.
+  // Without resetting here, the previous product's reviews/rating/
+  // similar-products/variant-selection/gallery-index would keep
+  // showing under the new product's name until (for the async data)
+  // the loads below resolve, or (for variants/gallery, which had no
+  // reload at all) indefinitely.
+  setSelectedImage(0);
+  setReviews([]);
+  setReviewCount(0);
+  setAverageRating(0);
+  setSimilarProducts([]);
+
+  setSelectedVariants(() => {
+    const initial: Record<string, string> = {};
+
+    if (Array.isArray(product.variants)) {
+      product.variants.forEach((variant: any) => {
+        if (variant.options?.length > 0) {
+          initial[variant.label] = variant.options[0];
+        }
+      });
+    }
+
+    return initial;
+  });
+
 saveRecentlyViewed(
     product
   );
@@ -222,7 +243,7 @@ saveRecentlyViewed(
 
 }
 
-}, []);
+}, [product.id]);
   function getDeliveryEstimate() {
 
     const minDate = new Date();
@@ -326,6 +347,14 @@ saveRecentlyViewed(
 
   async function handleAddToWishlist() {
 
+    // The duplicate check below is a query-then-insert, not atomic —
+    // a fast double-tap could fire both requests before either's
+    // insert lands, passing the "not already in wishlist" check
+    // twice and creating two wishlist entries for the same product.
+    if (addingToWishlist) {
+      return;
+    }
+
     const user =
       auth.currentUser;
 
@@ -343,6 +372,8 @@ saveRecentlyViewed(
 
 
     try {
+
+      setAddingToWishlist(true);
 
       const wishlistQuery =
         query(
@@ -440,6 +471,10 @@ saveRecentlyViewed(
         "Error",
         "Unable to add product to wishlist."
       );
+
+    } finally {
+
+      setAddingToWishlist(false);
 
     }
 
@@ -1084,13 +1119,15 @@ saveRecentlyViewed(
           {/* WISHLIST */}
 
           <TouchableOpacity
-            style={
-              styles.wishlistButton
-            }
+            style={[
+              styles.wishlistButton,
+              addingToWishlist && styles.disabledButton,
+            ]}
             onPress={
               handleAddToWishlist
             }
             activeOpacity={0.8}
+            disabled={addingToWishlist}
           >
 
             <MaterialIcons
