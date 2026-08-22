@@ -13,6 +13,10 @@ import {
   db,
 } from "../firebase/firebase";
 
+import {
+  getProductById,
+} from "./productService";
+
 
 /*
   Save a product to Recently Viewed
@@ -329,9 +333,35 @@ export async function getRecentlyViewed(
       }
     );
 
-    return items
-      .slice(0, limitCount)
-      .map((item) => ({
+    const recentItems =
+      items.slice(0, limitCount);
+
+    // The recentlyViewed doc only ever stores a display snapshot
+    // (name/price/image at the time it was viewed) — it never had
+    // stock, variants, gstPercent, or category. Returning that
+    // snapshot as "the product" fed straight into ProductCard, which
+    // silently skipped stock gating (undefined stock reads as always
+    // in stock) and, on tap, carried the same gaps through to Product
+    // Details. Fetch the live product for each item instead; fall
+    // back to the cached snapshot only if it's no longer available.
+    const liveProducts =
+      await Promise.all(
+        recentItems.map((item) =>
+          item.productId
+            ? getProductById(item.productId)
+            : null
+        )
+      );
+
+    return recentItems.map((item, index) => {
+
+      const live = liveProducts[index];
+
+      if (live) {
+        return live;
+      }
+
+      return {
         id: item.productId,
         name: item.name,
         price: item.price,
@@ -340,7 +370,9 @@ export async function getRecentlyViewed(
         discountPercent: item.discountPercent,
         vendorId: item.vendorId,
         vendorName: item.vendorName,
-      }));
+      };
+
+    });
 
   } catch (error) {
 

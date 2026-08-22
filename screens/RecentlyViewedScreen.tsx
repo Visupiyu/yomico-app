@@ -26,6 +26,10 @@ import {
 } from "../firebase/firebase";
 
 import {
+  getProductById,
+} from "../services/productService";
+
+import {
   MaterialIcons,
 } from "@expo/vector-icons";
 
@@ -219,14 +223,26 @@ export default function RecentlyViewedScreen() {
   }
 
 
-  function openProduct(
+  async function openProduct(
     item: RecentlyViewedItem
   ) {
+
+    // The recentlyViewed doc only ever stored a display snapshot
+    // (name/price/image), never stock, variants, gstPercent, or
+    // category — passing that snapshot on as "the product" silently
+    // disabled stock gating and the variant selector on this page,
+    // and dropped GST from the order total for anything added to
+    // cart from here. Fetch the live product instead; fall back to
+    // the cached snapshot only if it can no longer be found.
+    const liveProduct =
+      item.productId
+        ? await getProductById(item.productId)
+        : null;
 
     navigation.navigate(
       "ProductDetails",
       {
-        product: {
+        product: liveProduct || {
 
           id:
             item.productId,

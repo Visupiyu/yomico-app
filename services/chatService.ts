@@ -3,7 +3,10 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
+  query,
   serverTimestamp,
+  where,
 } from "firebase/firestore";
 
 import {
@@ -28,12 +31,49 @@ export async function createChat(
     );
   }
 
+  const chatsRef =
+    collection(
+      db,
+      "chats"
+    );
+
+  // Reuse the existing conversation for this customer/product/seller
+  // instead of creating a new "chats" doc every time — messages are
+  // keyed by chatId, so creating a fresh chat on every visit made the
+  // customer's previous conversation with this seller unreachable
+  // each time they reopened it.
+  const existingChatQuery =
+    query(
+      chatsRef,
+      where(
+        "customerId",
+        "==",
+        user.uid
+      ),
+      where(
+        "productId",
+        "==",
+        productId
+      ),
+      where(
+        "sellerId",
+        "==",
+        vendorId
+      )
+    );
+
+  const existingChats =
+    await getDocs(
+      existingChatQuery
+    );
+
+  if (!existingChats.empty) {
+    return existingChats.docs[0].id;
+  }
+
   const chatRef =
     await addDoc(
-      collection(
-        db,
-        "chats"
-      ),
+      chatsRef,
       {
         customerId:
           user.uid,

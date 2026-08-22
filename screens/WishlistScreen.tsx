@@ -371,14 +371,36 @@ async function addWishlistItemToCart(
 
 }
 
-  function openProduct(
+  async function openProduct(
   item: WishlistItem
 ) {
+
+  // `item` is the wishlist doc, not the product — its own `id` is the
+  // wishlist doc id, not the product id. Passing it straight through
+  // as `product` used to corrupt everything downstream (reviews,
+  // recently-viewed, and critically Add to Cart, which would store
+  // the wishlist doc id as the cart line's productId and make the
+  // item unbuyable at checkout). Fetch the real, live product by
+  // `item.productId` instead; fall back to a correctly-mapped partial
+  // object only if the product can no longer be found.
+  const liveProduct =
+    item.productId
+      ? await getProductById(item.productId)
+      : null;
 
   navigation.navigate(
     "ProductDetails",
     {
-      product: item,
+      product: liveProduct || {
+        id: item.productId,
+        name: item.name,
+        price: item.price,
+        mrp: item.mrp,
+        image: item.image,
+        vendorId: item.vendorId,
+        vendorName: item.vendorName,
+        discountPercent: item.discountPercent,
+      },
     }
   );
 
