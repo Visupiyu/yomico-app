@@ -123,6 +123,16 @@ async function submitReview(
   photoUris: string[]
 ) {
 
+  // The "already reviewed" check below is query-then-insert, not
+  // atomic, and the window between them is stretched further by the
+  // photo-upload loop — a second tap while photos are still uploading
+  // (or before the button's disabled state visually lands) could pass
+  // the duplicate check twice and create two reviews for the same
+  // order/product.
+  if (uploadingReview) {
+    return;
+  }
+
   const user =
     auth.currentUser;
 
@@ -307,6 +317,9 @@ const [reviewPhotos, setReviewPhotos] =
 const [uploadingReview, setUploadingReview] =
   useState(false);
 
+const [cancelling, setCancelling] =
+  useState(false);
+
 
 async function pickReviewPhoto() {
 
@@ -376,7 +389,18 @@ function removeReviewPhoto(index: number) {
   }
 async function cancelOrder() {
 
+  // The stock-restore transaction below already no-ops safely on a
+  // second run (it checks status === "Cancelled" and returns), but
+  // nothing stopped a double-tap from running the whole function
+  // twice regardless — each successful call sends its own "Order
+  // Cancelled" notification and shows its own success alert.
+  if (cancelling) {
+    return;
+  }
+
   try {
+
+    setCancelling(true);
 
     const updatedPaymentStatus =
       isPayOnDelivery(order.paymentMethod)
@@ -499,6 +523,10 @@ async function cancelOrder() {
       "Error",
       "Unable to cancel the order."
     );
+
+  } finally {
+
+    setCancelling(false);
 
   }
 
@@ -745,14 +773,18 @@ async function cancelOrder() {
 {order.status === "Pending" && (
 
   <TouchableOpacity
-    style={styles.cancelButton}
+    style={[
+      styles.cancelButton,
+      cancelling && styles.cancelButtonDisabled,
+    ]}
     onPress={cancelOrder}
+    disabled={cancelling}
   >
 
     <Text
       style={styles.cancelButtonText}
     >
-      Cancel Order
+      {cancelling ? "Cancelling..." : "Cancel Order"}
     </Text>
 
   </TouchableOpacity>
@@ -1694,6 +1726,10 @@ cancelButton: {
   alignItems: "center",
   justifyContent: "center",
   backgroundColor: "#FFFFFF",
+},
+
+cancelButtonDisabled: {
+  opacity: 0.6,
 },
 
 cancelButtonText: {
