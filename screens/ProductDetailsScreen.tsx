@@ -93,6 +93,9 @@ const [similarProducts, setSimilarProducts] =
 const [addingToWishlist, setAddingToWishlist] =
   useState(false);
 
+const [processingCart, setProcessingCart] =
+  useState(false);
+
 const stock = Number(product.stock ?? 1);
 const isOutOfStock = product.stock !== undefined && stock <= 0;
 const isLowStock = product.stock !== undefined && stock > 0 && stock < 5;
@@ -269,6 +272,15 @@ saveRecentlyViewed(
       return;
     }
 
+    // cartService.addToCart is a query-then-write, not atomic — a
+    // fast double-tap (or tapping this and Add to Cart back to back)
+    // can both see "no existing line yet" and each create their own
+    // cart line for the same product/variant instead of one line
+    // with quantity 2.
+    if (processingCart) {
+      return;
+    }
+
     if (!auth.currentUser) {
 
       Alert.alert(
@@ -281,6 +293,8 @@ saveRecentlyViewed(
     }
 
     try {
+
+      setProcessingCart(true);
 
       await addToCart({ ...product, selectedVariants });
 
@@ -298,6 +312,10 @@ saveRecentlyViewed(
         "Unable to proceed to checkout."
       );
 
+    } finally {
+
+      setProcessingCart(false);
+
     }
 
   }
@@ -305,6 +323,11 @@ saveRecentlyViewed(
   async function handleAddToCart() {
 
     if (isOutOfStock) {
+      return;
+    }
+
+    // Same non-atomic query-then-write race as Buy Now above.
+    if (processingCart) {
       return;
     }
 
@@ -320,6 +343,8 @@ saveRecentlyViewed(
     }
 
     try {
+
+      setProcessingCart(true);
 
       await addToCart({ ...product, selectedVariants });
 
@@ -339,6 +364,10 @@ saveRecentlyViewed(
         "Error",
         "Unable to add product."
       );
+
+    } finally {
+
+      setProcessingCart(false);
 
     }
 
@@ -1152,13 +1181,13 @@ saveRecentlyViewed(
           <TouchableOpacity
             style={[
               styles.cartButton,
-              isOutOfStock && styles.disabledButton,
+              (isOutOfStock || processingCart) && styles.disabledButton,
             ]}
             onPress={
               handleAddToCart
             }
             activeOpacity={0.8}
-            disabled={isOutOfStock}
+            disabled={isOutOfStock || processingCart}
           >
 
             <MaterialIcons
@@ -1181,13 +1210,13 @@ saveRecentlyViewed(
           <TouchableOpacity
             style={[
               styles.buyButton,
-              isOutOfStock && styles.disabledButton,
+              (isOutOfStock || processingCart) && styles.disabledButton,
             ]}
             activeOpacity={0.8}
             onPress={
               handleBuyNow
             }
-            disabled={isOutOfStock}
+            disabled={isOutOfStock || processingCart}
           >
 
             <Text

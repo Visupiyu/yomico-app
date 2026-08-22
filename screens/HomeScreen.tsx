@@ -1,4 +1,5 @@
 import React, {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -22,7 +23,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { getProducts } from "../services/productService";
 import { getRecentlyViewed } from "../services/recentlyViewedService";
 import ProductCard from "../components/ProductCard";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types"
 
@@ -74,11 +75,18 @@ export default function HomeScreen() {
 
   const [countdown, setCountdown] = useState("");
 
-  useEffect(() => {
-    loadProducts();
-    loadDefaultAddress();
-    loadRecentlyViewed();
-  }, []);
+  // Home stays mounted while switching tabs, so a mount-only load
+  // would never reflect a product viewed elsewhere (Recently Viewed)
+  // or a default address changed on the Address screen — both would
+  // keep showing whatever was true when Home first mounted, until the
+  // app is restarted. Reload on every focus instead.
+  useFocusEffect(
+    useCallback(() => {
+      loadProducts();
+      loadDefaultAddress();
+      loadRecentlyViewed();
+    }, [])
+  );
 
   useEffect(() => {
     function updateCountdown() {

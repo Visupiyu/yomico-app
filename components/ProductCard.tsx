@@ -90,10 +90,21 @@ export default function ProductCard({
   const [addingToWishlist, setAddingToWishlist] =
     useState(false);
 
+  const [addingToCart, setAddingToCart] =
+    useState(false);
+
 
   async function handleAddToCart() {
 
     if (isOutOfStock) {
+      return;
+    }
+
+    // cartService.addToCart is a query-then-write, not atomic — a
+    // fast double-tap can both see "no existing line yet" and each
+    // create their own cart line for the same product instead of one
+    // line with quantity 2.
+    if (addingToCart) {
       return;
     }
 
@@ -109,6 +120,8 @@ export default function ProductCard({
     }
 
     try {
+
+      setAddingToCart(true);
 
       await addToCart(
         product
@@ -130,6 +143,10 @@ export default function ProductCard({
         "Error",
         "Unable to add product to cart."
       );
+
+    } finally {
+
+      setAddingToCart(false);
 
     }
 
@@ -564,11 +581,11 @@ export default function ProductCard({
           <TouchableOpacity
             style={[
               styles.cartButton,
-              isOutOfStock &&
+              (isOutOfStock || addingToCart) &&
                 styles.cartButtonDisabled,
             ]}
             activeOpacity={0.8}
-            disabled={isOutOfStock}
+            disabled={isOutOfStock || addingToCart}
             onPress={
               handleAddToCart
             }
