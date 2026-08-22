@@ -39,6 +39,7 @@ import {
   storage,
 } from "../firebase/firebase";
 import { addToCart } from "../services/cartService";
+import { getProductById } from "../services/productService";
 import { createNotification } from "../services/notificationService";
 import { getStatusColors } from "../utils/orderStatus";
 import {
@@ -95,10 +96,41 @@ async function reorderItems() {
       const item of order.items || []
     ) {
 
+      const productId =
+        item.productId || item.id;
+
+      // order.items is a price snapshot from when the order was
+      // placed — reordering should add today's price, not whatever
+      // it cost back then, matching how every other Add to Cart path
+      // (Product Details, wishlist) already fetches the live product.
+      // Falls back to the order's snapshot only if the product is no
+      // longer available.
+      const liveProduct =
+        productId
+          ? await getProductById(productId)
+          : null;
+
       await addToCart({
         ...item,
-        productId:
-          item.productId || item.id,
+        productId,
+        name:
+          liveProduct?.name ?? item.name,
+        image:
+          liveProduct?.image ?? item.image,
+        price:
+          liveProduct?.price ?? item.price,
+        mrp:
+          liveProduct?.mrp ?? item.mrp,
+        discountPercent:
+          liveProduct?.discountPercent ??
+          item.discountPercent,
+        gstPercent:
+          liveProduct?.gstPercent ??
+          item.gstPercent,
+        vendorId:
+          liveProduct?.vendorId ?? item.vendorId,
+        vendorName:
+          liveProduct?.vendorName ?? item.vendorName,
         quantity:
           item.quantity || 1,
       });

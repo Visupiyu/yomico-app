@@ -136,6 +136,36 @@ export default function WishlistScreen() {
   }
 
 
+  // The wishlist doc only stores a price snapshot from when the item
+  // was saved — this screen's own "Price dropped" banner proves that
+  // price can have changed since. Fetch the live product so Add to
+  // Cart uses today's price, not the stale one, matching how every
+  // other Add to Cart path (Product Details, Product Card) already
+  // works. Falls back to the wishlist snapshot only if the product is
+  // no longer available.
+  async function buildCartPayload(item: WishlistItem) {
+
+    const liveProduct =
+      item.productId
+        ? await getProductById(item.productId)
+        : null;
+
+    return {
+      id: item.productId,
+      name: liveProduct?.name ?? item.name,
+      image: liveProduct?.image ?? item.image,
+      price: liveProduct?.price ?? item.price,
+      mrp: liveProduct?.mrp ?? item.mrp,
+      discountPercent:
+        liveProduct?.discountPercent ?? item.discountPercent,
+      gstPercent: liveProduct?.gstPercent,
+      vendorId: liveProduct?.vendorId ?? item.vendorId,
+      vendorName: liveProduct?.vendorName ?? item.vendorName,
+    };
+
+  }
+
+
   async function moveAllToCart() {
 
     if (!wishlist.length) return;
@@ -149,16 +179,9 @@ export default function WishlistScreen() {
 
       for (const item of inStockItems) {
 
-        await addToCart({
-          id: item.productId,
-          name: item.name,
-          image: item.image,
-          price: item.price,
-          mrp: item.mrp,
-          discountPercent: item.discountPercent,
-          vendorId: item.vendorId,
-          vendorName: item.vendorName,
-        });
+        await addToCart(
+          await buildCartPayload(item)
+        );
 
         await deleteDoc(
           doc(db, "wishlist", item.id)
@@ -321,33 +344,9 @@ async function addWishlistItemToCart(
 
   try {
 
-    await addToCart({
-
-      id:
-        item.productId,
-
-      name:
-        item.name,
-
-      image:
-        item.image,
-
-      price:
-        item.price,
-
-      mrp:
-        item.mrp,
-
-      discountPercent:
-        item.discountPercent,
-
-      vendorId:
-        item.vendorId,
-
-      vendorName:
-        item.vendorName,
-
-    });
+    await addToCart(
+      await buildCartPayload(item)
+    );
 
 
     Alert.alert(
