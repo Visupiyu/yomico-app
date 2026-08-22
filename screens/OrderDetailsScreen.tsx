@@ -80,6 +80,15 @@ export default function OrderDetailsScreen() {
     >();
 async function reorderItems() {
 
+  // Each cart line is written with its own await inside a sequential
+  // loop, so a second tap before the first pass finishes would run a
+  // fully overlapping loop and double every reordered quantity.
+  if (reordering) {
+    return;
+  }
+
+  setReordering(true);
+
   try {
 
     for (
@@ -112,6 +121,10 @@ async function reorderItems() {
       "Error",
       "Unable to add items to cart."
     );
+
+  } finally {
+
+    setReordering(false);
 
   }
 
@@ -318,6 +331,9 @@ const [uploadingReview, setUploadingReview] =
   useState(false);
 
 const [cancelling, setCancelling] =
+  useState(false);
+
+const [reordering, setReordering] =
   useState(false);
 
 
@@ -791,14 +807,18 @@ async function cancelOrder() {
 
 )}
 <TouchableOpacity
-  style={styles.reorderButton}
+  style={[
+    styles.reorderButton,
+    reordering && styles.cancelButtonDisabled,
+  ]}
   onPress={reorderItems}
+  disabled={reordering}
 >
 
   <Text
     style={styles.reorderButtonText}
   >
-    Buy Again
+    {reordering ? "Adding..." : "Buy Again"}
   </Text>
 
 </TouchableOpacity>

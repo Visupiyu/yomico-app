@@ -28,6 +28,16 @@ export async function addToCart(product: any) {
 
   const snapshot = await getDocs(q);
 
+  // Most callers add one unit at a time and never set this, but
+  // reorderItems (Buy Again) passes the original order line's
+  // quantity — that was previously ignored below (new lines always
+  // started at 1, existing lines always incremented by exactly 1),
+  // so reordering a qty-3 line silently added only 1 unit.
+  const requestedQuantity =
+    Number(product.quantity) > 0
+      ? Number(product.quantity)
+      : 1;
+
   const selectedVariants =
     product.selectedVariants &&
     Object.keys(product.selectedVariants).length > 0
@@ -46,7 +56,7 @@ export async function addToCart(product: any) {
   if (existingDoc) {
 
     await updateDoc(existingDoc.ref, {
-      quantity: (existingDoc.data().quantity || 1) + 1,
+      quantity: (existingDoc.data().quantity || 1) + requestedQuantity,
       savedForLater: false,
     });
 
@@ -62,7 +72,7 @@ export async function addToCart(product: any) {
     mrp: product.mrp,
     discountPercent: product.discountPercent,
     gstPercent: product.gstPercent || 0,
-    quantity: 1,
+    quantity: requestedQuantity,
     vendorId: product.vendorId,
     vendorName: product.vendorName,
     savedForLater: false,
