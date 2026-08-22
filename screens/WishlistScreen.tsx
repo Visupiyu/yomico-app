@@ -78,6 +78,12 @@ export default function WishlistScreen() {
   const [priceDrops, setPriceDrops] =
     useState<Record<string, number>>({});
 
+  // Wishlist docs don't store stock (it wasn't known when the item
+  // was saved), so out-of-stock is only knowable from the live
+  // product — fetched below alongside the price-drop check.
+  const [outOfStockItems, setOutOfStockItems] =
+    useState<Record<string, boolean>>({});
+
   const [movingAll, setMovingAll] =
     useState(false);
 
@@ -96,6 +102,7 @@ export default function WishlistScreen() {
   ) {
 
     const drops: Record<string, number> = {};
+    const outOfStock: Record<string, boolean> = {};
 
     await Promise.all(
       items.map(async (item) => {
@@ -114,10 +121,17 @@ export default function WishlistScreen() {
           drops[item.id] = storedPrice - livePrice;
         }
 
+        const liveStock = (liveProduct as any).stock;
+
+        if (liveStock !== undefined && Number(liveStock) <= 0) {
+          outOfStock[item.id] = true;
+        }
+
       })
     );
 
     setPriceDrops(drops);
+    setOutOfStockItems(outOfStock);
 
   }
 
@@ -130,7 +144,10 @@ export default function WishlistScreen() {
 
     try {
 
-      for (const item of wishlist) {
+      const inStockItems =
+        wishlist.filter((item) => !outOfStockItems[item.id]);
+
+      for (const item of inStockItems) {
 
         await addToCart({
           id: item.productId,
@@ -149,11 +166,18 @@ export default function WishlistScreen() {
 
       }
 
-      setWishlist([]);
+      setWishlist((current) =>
+        current.filter((item) => outOfStockItems[item.id])
+      );
+
+      const skippedCount =
+        wishlist.length - inStockItems.length;
 
       Alert.alert(
         "Moved to Cart",
-        "All wishlist items have been added to your cart."
+        skippedCount > 0
+          ? `${inStockItems.length} item${inStockItems.length === 1 ? "" : "s"} added to your cart. ${skippedCount} out-of-stock item${skippedCount === 1 ? "" : "s"} left in your wishlist.`
+          : "All wishlist items have been added to your cart."
       );
 
     } catch (error) {
@@ -284,6 +308,17 @@ async function addWishlistItemToCart(
   item: WishlistItem
 ) {
 
+  if (outOfStockItems[item.id]) {
+
+    Alert.alert(
+      "Out of Stock",
+      "This product is currently out of stock."
+    );
+
+    return;
+
+  }
+
   try {
 
     await addToCart({
@@ -407,11 +442,22 @@ async function addWishlistItemToCart(
 
             )}
 
+            {outOfStockItems[item.id] && (
+
+              <Text style={styles.outOfStockText}>
+                Out of Stock
+              </Text>
+
+            )}
+
             <TouchableOpacity
-              style={
-                styles.addCartButton
-              }
+              style={[
+                styles.addCartButton,
+                outOfStockItems[item.id] &&
+                  styles.addCartButtonDisabled,
+              ]}
               activeOpacity={0.8}
+              disabled={!!outOfStockItems[item.id]}
               onPress={() =>
                 addWishlistItemToCart(
                   item
@@ -701,6 +747,17 @@ addCartButton: {
   paddingVertical: 7,
   borderRadius: 7,
   marginTop: 9,
+},
+
+addCartButtonDisabled: {
+  backgroundColor: "#B5B5B5",
+},
+
+outOfStockText: {
+  marginTop: 8,
+  fontSize: 11,
+  fontWeight: "700",
+  color: "#DC2626",
 },
 
 addCartText: {

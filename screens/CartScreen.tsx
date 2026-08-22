@@ -19,6 +19,10 @@ import {
   moveToCart,
 } from "../services/cartService";
 
+import {
+  getProductById,
+} from "../services/productService";
+
 import { MaterialIcons } from "@expo/vector-icons";
 
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -107,6 +111,36 @@ export default function CartScreen() {
   ) {
 
     try {
+
+      // Cart lines don't carry stock (it wasn't known when the item
+      // was added), so check the live product before letting the
+      // customer raise the quantity — otherwise the only place this
+      // surfaces is a rejection at the very end of checkout, after
+      // they've already filled in delivery details.
+      const liveProduct =
+        item.productId
+          ? await getProductById(item.productId)
+          : null;
+
+      const liveStock =
+        (liveProduct as any)?.stock;
+
+      if (
+        liveStock !== undefined &&
+        item.quantity >= Number(liveStock)
+      ) {
+
+        Alert.alert(
+          "Limited Stock",
+          Number(liveStock) > 0
+            ? `Only ${liveStock} left in stock for this product.`
+            : "This product is now out of stock."
+        );
+
+        return;
+
+      }
+
       await updateCartQuantity(
         item.id,
         item.quantity + 1

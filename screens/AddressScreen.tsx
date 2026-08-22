@@ -1,5 +1,5 @@
 import React, {
-  useEffect,
+  useCallback,
   useState,
 } from "react";
 
@@ -34,6 +34,7 @@ import {
 } from "@expo/vector-icons";
 
 import {
+  useFocusEffect,
   useNavigation,
 } from "@react-navigation/native";
 
@@ -99,11 +100,16 @@ export default function AddressScreen() {
     useState(false);
 
 
-  useEffect(() => {
+  // This screen stays mounted in the stack while EditAddress is
+  // pushed on top of it, so a mount-only load would keep showing the
+  // pre-edit address after saving changes there and going back.
+  useFocusEffect(
+    useCallback(() => {
 
-    loadAddresses();
+      loadAddresses();
 
-  }, []);
+    }, [])
+  );
 
 
   async function loadAddresses() {

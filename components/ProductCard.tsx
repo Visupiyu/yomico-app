@@ -80,7 +80,18 @@ export default function ProductCard({
     useNavigation<NavigationProp>();
 
 
+  const stock =
+    Number(product.stock ?? 1);
+
+  const isOutOfStock =
+    product.stock !== undefined && stock <= 0;
+
+
   async function handleAddToCart() {
+
+    if (isOutOfStock) {
+      return;
+    }
 
     if (!auth.currentUser) {
 
@@ -524,15 +535,20 @@ export default function ProductCard({
               styles.viewText
             }
           >
-            View details
+            {isOutOfStock
+              ? "Out of stock"
+              : "View details"}
           </Text>
 
 
           <TouchableOpacity
-            style={
-              styles.cartButton
-            }
+            style={[
+              styles.cartButton,
+              isOutOfStock &&
+                styles.cartButtonDisabled,
+            ]}
             activeOpacity={0.8}
+            disabled={isOutOfStock}
             onPress={
               handleAddToCart
             }
@@ -841,6 +857,12 @@ const styles =
       height: 29,
       paddingHorizontal: 8,
       borderRadius: 7,
+    },
+
+
+    cartButtonDisabled: {
+      backgroundColor:
+        "#B5B5B5",
     },
 
 

@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -37,8 +38,13 @@ export default function RegisterScreen() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function handleRegister() {
+
+  if (loading) {
+    return;
+  }
 
   if (
     !name ||
@@ -57,6 +63,8 @@ export default function RegisterScreen() {
   }
 
   try {
+
+  setLoading(true);
 
   console.log("Starting Firebase Registration...");
 
@@ -103,6 +111,10 @@ export default function RegisterScreen() {
     "Registration Failed",
     error.code + "\n\n" + error.message
   );
+
+} finally {
+
+  setLoading(false);
 
 }
 
@@ -193,12 +205,20 @@ export default function RegisterScreen() {
       </View>
 
       <TouchableOpacity
-        style={styles.button}
+        style={[
+          styles.button,
+          loading && styles.buttonDisabled,
+        ]}
         onPress={handleRegister}
+        disabled={loading}
       >
-        <Text style={styles.buttonText}>
-          Create Account
-        </Text>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>
+            Create Account
+          </Text>
+        )}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -263,6 +283,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     marginTop: 10,
+  },
+
+  buttonDisabled: {
+    opacity: 0.6,
   },
 
   buttonText: {
