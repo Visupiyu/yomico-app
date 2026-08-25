@@ -16,20 +16,15 @@ import {
 
 import {
   collection,
-  serverTimestamp,
   getDocs,
   query,
   where,
-  doc,
-  runTransaction,
-  increment,
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase/firebase";
 
 import {
   getCartItems,
-  removeCartItem,
 } from "../services/cartService";
 
 import {
@@ -39,6 +34,11 @@ import {
 import {
   validateCoupon,
 } from "../services/couponService";
+
+import {
+  API_BASE_URL,
+  generateIdempotencyKey,
+} from "../services/apiConfig";
 
 import {
   PAY_ON_DELIVERY_METHOD,
@@ -95,6 +95,13 @@ export default function CheckoutScreen() {
 
   const [loading, setLoading] =
     useState(false);
+
+  // One key per Checkout visit — a retry within this same visit (including
+  // a fast double-tap that slips past the `loading` guard below) reuses it,
+  // so the server-side endpoint can recognize a retry instead of creating a
+  // second order. A fresh visit to Checkout gets a fresh key.
+  const [idempotencyKey] =
+    useState(() => generateIdempotencyKey());
 
   /*
     Only one payment method exists today: UPI collected at
@@ -489,37 +496,6 @@ setCartItemsTotalMRP(
       setLoading(true);
 
 
-      const cartItems = (
-        await getCartItems()
-      ).filter((item: any) => !item.savedForLater);
-
-
-      if (
-        !cartItems ||
-        cartItems.length === 0
-      ) {
-
-        Alert.alert(
-          "Cart Empty",
-          "Your cart is empty."
-        );
-
-        navigation.navigate("MainTabs", {
-  screen: "CartTab",
-});
-        return;
-
-      }
-
-
-      const vendorIds = [
-        ...new Set(
-          cartItems
-            .map((item: any) => item.vendorId)
-            .filter(Boolean)
-        ),
-      ];
-
       const flattenedAddress = [
         address.trim(),
         city.trim(),
@@ -529,298 +505,92 @@ setCartItemsTotalMRP(
         .join(", ");
 
 
-     const subtotal =
-  cartItems.reduce(
-    (
-      sum: number,
-      item: any
-    ) =>
-      sum +
-      Number(item.price) *
-        Number(item.quantity),
-    0
-  );
-
-
-const calculatedGst =
-  cartItems.reduce(
-    (
-      sum: number,
-      item: any
-    ) => {
-
-      const itemTotal =
-        Number(item.price) *
-        Number(item.quantity);
-
-      const gstPercent =
-        Number(item.gstPercent || 0);
-
-      return (
-        sum +
-        (itemTotal * gstPercent) / 100
-      );
-
-    },
-    0
-  );
-setGstAmount(
-  calculatedGst
-);
-
-      const finalShipping =
-        calculateShipping(subtotal, shippingSettings);
-
-
-const discountAmount =
-  appliedCoupon?.discountAmount || 0;
-
-const total =
-  subtotal +
-  finalShipping +
-  calculatedGst -
-  discountAmount;
-
-      const orderData = {
-
-        userId:
-          user.uid,
-
-        customerName:
-          name.trim(),
-
-        customerEmail:
-          user.email || "",
-
-        phone:
-          mobile.trim(),
-
-        address:
-          flattenedAddress,
-
-        vendorIds:
-          vendorIds,
-
-        deliverySlot:
-          deliverySlot,
-
-        items:
-          cartItems,
-
-        subtotal:
-          subtotal,
-
-        shipping:
-          finalShipping,
-
-        couponCode:
-          appliedCoupon?.code || null,
-
-        discountAmount:
-          discountAmount,
-
-        total:
-          total,
-
-        paymentMethod:
-          paymentMethod,
-
-        paymentStatus:
-          "Pending",
-
-        status:
-          "Pending",
-
-       createdAt:
-  serverTimestamp(),
-
-gstAmount:
-  calculatedGst,
-};
-
-
       /*
-       * Reserve stock and create the order in the SAME transaction —
-       * mirrors yogi-mart-next's checkout transaction so mobile orders
-       * can't oversell, and Firestore guarantees the stock reservation
-       * and the order document either both commit or neither does.
-       * (Previously these were two separate steps with a manual
-       * best-effort rollback if order creation failed; that rollback
-       * could itself fail and leave stock permanently decremented with
-       * no order to show for it.)
+       * Order creation is server-authoritative — firestore.rules deny
+       * client-side `orders` create entirely (the same protection the
+       * web checkout has), so this calls app/api/mobile/place-order
+       * (Visupiyu/yogi) instead of writing the order/stock changes
+       * directly. The server re-derives every price from the live
+       * product data and re-reads the caller's own current cart; it
+       * never trusts a client-supplied total, item list or coupon
+       * discount. idempotencyKey lets a retry (including a fast
+       * double-tap) return the same order instead of creating a
+       * second one.
        */
 
-      const orderRef =
-        doc(
-          collection(
-            db,
-            "orders"
-          )
-        );
+      const idToken =
+        await user.getIdToken();
+
+      let response: Response;
 
       try {
 
-        await runTransaction(
-          db,
-          async (transaction) => {
-
-            // A customer can have multiple cart lines for the same
-            // product — one per variant combo (cartService.addToCart
-            // gives each variant its own line so a size/color choice
-            // isn't lost). Validating and decrementing per cart line
-            // against the product's full live stock, independently,
-            // let combined demand across those lines exceed stock
-            // while each line's own check still passed (e.g. two
-            // variant lines of qty 3 each against 5 in stock both
-            // read "5 < 3 is false" and the transaction applied both
-            // -3 decrements, leaving stock at -1). Aggregate the
-            // quantity needed per product first, then validate and
-            // reserve against that combined total.
-
-            const quantityByProductId =
-              new Map<string, number>();
-
-            for (
-              const item of cartItems as any[]
-            ) {
-
-              const current =
-                quantityByProductId.get(item.productId) || 0;
-
-              quantityByProductId.set(
-                item.productId,
-                current + Number(item.quantity)
-              );
-
-            }
-
-            const productIds =
-              [...quantityByProductId.keys()];
-
-            const productRefs =
-              productIds.map(
-                (productId) =>
-                  doc(
-                    db,
-                    "products",
-                    productId
-                  )
-              );
-
-            const productSnaps =
-              await Promise.all(
-                productRefs.map(
-                  (productRef: any) =>
-                    transaction.get(
-                      productRef
-                    )
-                )
-              );
-
-            for (
-              let i = 0;
-              i < productIds.length;
-              i++
-            ) {
-
-              const productId = productIds[i];
-              const snap = productSnaps[i];
-
-              const requiredQuantity =
-                quantityByProductId.get(productId) || 0;
-
-              const matchingItem =
-                (cartItems as any[]).find(
-                  (item) => item.productId === productId
-                );
-
-              const productLabel =
-                matchingItem?.name || "This product";
-
-              if (!snap.exists()) {
-
-                throw new Error(
-                  `${productLabel} is no longer available.`
-                );
-
-              }
-
-              const productData =
-                snap.data() as any;
-
-              if (
-                productData.active === false
-              ) {
-
-                throw new Error(
-                  `${productLabel} is no longer available.`
-                );
-
-              }
-
-              const availableStock =
-                Number(
-                  productData.stock ?? 0
-                );
-
-              if (
-                availableStock <
-                requiredQuantity
-              ) {
-
-                throw new Error(
-                  `Only ${availableStock} left for ${productLabel}.`
-                );
-
-              }
-
-            }
-
-            for (
-              let i = 0;
-              i < productIds.length;
-              i++
-            ) {
-
-              const requiredQuantity =
-                quantityByProductId.get(productIds[i]) || 0;
-
-              transaction.update(
-                productRefs[i],
-                {
-                  stock: increment(
-                    -requiredQuantity
-                  ),
-                  sales: increment(
-                    requiredQuantity
-                  ),
-                }
-              );
-
-            }
-
-            transaction.set(
-              orderRef,
-              orderData
-            );
-
+        response = await fetch(
+          `${API_BASE_URL}/api/mobile/place-order`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+              idempotencyKey,
+              customerName: name.trim(),
+              phone: mobile.trim(),
+              address: flattenedAddress,
+              deliverySlot,
+              couponCode: appliedCoupon?.code || null,
+            }),
           }
         );
 
-      } catch (orderError: any) {
+      } catch (networkError) {
 
-        // Validation failures inside the transaction are thrown as
-        // plain Errors (no `.code`); real Firestore/network failures
-        // come back as FirebaseError with a `.code`. Only the former
-        // has a message safe and useful to show the customer directly.
+        console.log(
+          "Order network error:",
+          networkError
+        );
+
+        Alert.alert(
+          "Connection Error",
+          "Couldn't reach YOMICO. Please check your internet connection and try again."
+        );
+
+        return;
+
+      }
+
+      const data =
+        await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+
         if (
-          orderError instanceof Error &&
-          !("code" in orderError)
+          data.error === "Your cart is empty."
         ) {
 
           Alert.alert(
+            "Cart Empty",
+            "Your cart is empty."
+          );
+
+          navigation.navigate("MainTabs", {
+  screen: "CartTab",
+});
+
+          return;
+
+        }
+
+        // The endpoint returns 409 for stock/product-availability
+        // failures — the only error messages safe to show the
+        // customer directly (mirrors the previous client-side
+        // transaction's plain-Error-vs-FirebaseError distinction).
+        if (response.status === 409) {
+
+          Alert.alert(
             "Stock Unavailable",
-            orderError.message ||
+            data.error ||
               "One or more items in your cart are no longer available in the requested quantity."
           );
 
@@ -828,9 +598,31 @@ gstAmount:
 
         }
 
-        throw orderError;
+        // Any other 400 (an invalid/expired/re-checked coupon being
+        // the realistic case, since delivery details are already
+        // validated above before this request is ever sent) — the
+        // server's message is customer-safe and specific either way.
+        if (
+          response.status === 400 &&
+          data.error
+        ) {
+
+          Alert.alert(
+            "Order Failed",
+            data.error
+          );
+
+          return;
+
+        }
+
+        throw new Error(
+          data.error || "Order request failed"
+        );
 
       }
+
+      const total = Number(data.total || 0);
 
       try {
 
@@ -845,35 +637,6 @@ gstAmount:
         console.log(
           "Order notification error:",
           notificationError
-        );
-
-      }
-
-
-      /*
-       * Remove purchased items
-       * from the cart.
-       */
-
-      try {
-
-        for (
-          const item of cartItems
-        ) {
-
-          await removeCartItem(
-            item.id
-          );
-
-        }
-
-      } catch (cartClearError) {
-
-        // Cleanup failure only — the order above was already created
-        // successfully, so this must never surface as an order failure.
-        console.error(
-          "Cart clearing error:",
-          cartClearError
         );
 
       }
