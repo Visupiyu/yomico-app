@@ -518,12 +518,59 @@ setCartItemsTotalMRP(
        * second one.
        */
 
-      const idToken =
-        await user.getIdToken();
+      // DIAGNOSTIC (temporary): a live COD test failed with the generic
+      // "Unable to place your order" message, and Vercel's Function Logs
+      // showed no matching /api/mobile/place-order request at all — so
+      // whatever failed happened client-side, before fetch() ever ran.
+      // getIdToken() was the prime suspect: it previously had no try/catch
+      // of its own, so a throw here fell straight through to the outer
+      // catch below and produced that exact generic message with nothing
+      // useful logged anywhere. Wrapping it separately, with its own
+      // logging and a distinct alert, is what will actually tell us
+      // whether this is the failure point on the next attempt.
+      console.log(
+        "[Checkout] placeOrder: fetching ID token..."
+      );
+
+      let idToken: string;
+
+      try {
+
+        idToken =
+          await user.getIdToken();
+
+        console.log(
+          "[Checkout] placeOrder: ID token acquired, length =",
+          idToken?.length
+        );
+
+      } catch (tokenError: any) {
+
+        console.log(
+          "[Checkout] placeOrder: getIdToken() FAILED:",
+          "name=", tokenError?.name,
+          "code=", tokenError?.code,
+          "message=", tokenError?.message,
+          tokenError
+        );
+
+        Alert.alert(
+          "Session Error",
+          "Couldn't verify your login session. Please log out and log back in, then try again."
+        );
+
+        return;
+
+      }
 
       let response: Response;
 
       try {
+
+        console.log(
+          "[Checkout] placeOrder: sending request to",
+          `${API_BASE_URL}/api/mobile/place-order`
+        );
 
         response = await fetch(
           `${API_BASE_URL}/api/mobile/place-order`,
@@ -544,10 +591,17 @@ setCartItemsTotalMRP(
           }
         );
 
-      } catch (networkError) {
+        console.log(
+          "[Checkout] placeOrder: response received, status =",
+          response.status
+        );
+
+      } catch (networkError: any) {
 
         console.log(
-          "Order network error:",
+          "[Checkout] placeOrder: fetch() FAILED:",
+          "name=", networkError?.name,
+          "message=", networkError?.message,
           networkError
         );
 
@@ -561,7 +615,16 @@ setCartItemsTotalMRP(
       }
 
       const data =
-        await response.json().catch(() => ({}));
+        await response.json().catch((parseError) => {
+
+          console.log(
+            "[Checkout] placeOrder: response.json() FAILED:",
+            parseError
+          );
+
+          return {};
+
+        });
 
       if (!response.ok) {
 
@@ -658,10 +721,20 @@ setCartItemsTotalMRP(
       );
 
 
-    } catch (error) {
+    } catch (error: any) {
 
+      // DIAGNOSTIC (temporary): getIdToken() and fetch() now have their
+      // own specific catch blocks above, each with their own alert and
+      // logging — reaching this one means the failure is neither of
+      // those. Logging name/code/message/stack explicitly here so a
+      // failure that reaches this branch is actually diagnosable, unlike
+      // before.
       console.log(
-        "Order error:",
+        "[Checkout] placeOrder: reached OUTER catch (not getIdToken/fetch):",
+        "name=", error?.name,
+        "code=", error?.code,
+        "message=", error?.message,
+        "stack=", error?.stack,
         error
       );
 
