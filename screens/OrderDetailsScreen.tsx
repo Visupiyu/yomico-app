@@ -260,7 +260,13 @@ if (
         `reviews/${user.uid}/${Date.now()}-${i}.jpg`
       );
 
-      await uploadBytes(photoRef, blob);
+      // blob.type from fetch(localUri).blob() is unreliable on Android
+      // (often empty or "application/octet-stream"), and storage.rules'
+      // isImageUnderLimit() requires contentType to match image/.* — an
+      // untyped blob upload gets denied as storage/unauthorized before the
+      // rule ever sees actual image bytes. Supplying it explicitly matches
+      // the path's fixed .jpg extension.
+      await uploadBytes(photoRef, blob, { contentType: "image/jpeg" });
 
       const downloadUrl = await getDownloadURL(photoRef);
 
