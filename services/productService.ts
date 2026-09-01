@@ -144,3 +144,34 @@ export async function getProductsByCategory(categoryId: string) {
 
   }
 }
+
+// Some customer-facing categories (e.g. "Men Fashion", "Women Fashion")
+// are sub-categories in the real catalog tree, not top-level categories —
+// their products are matched on subCategoryId, never categoryId. Mirrors
+// the web's own branch for a non-top-level node (yogi/app/category/[name]
+// /page.tsx: `where("subCategoryId", "==", matchedNode.id)`).
+export async function getProductsBySubCategory(subCategoryId: string) {
+  try {
+
+    const q = query(
+      collection(db, "products"),
+      where("subCategoryId", "==", subCategoryId),
+      orderBy("createdAt", "desc")
+    );
+
+    const snapshot = await getDocs(q);
+
+    const products = snapshot.docs.map((doc) =>
+      normalizeProduct(doc.id, doc.data())
+    );
+
+    return products;
+
+  } catch (error) {
+
+    console.log("Product Loading Error:", error);
+
+    return [];
+
+  }
+}

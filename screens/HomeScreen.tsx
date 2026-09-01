@@ -184,24 +184,33 @@ export default function HomeScreen() {
     }
   }
 
-  // The real, active top-level YOMICO categories (yogi/lib/catalog/
-  // catalogTree.ts's 9 level-1 nodes — ids/names/order extracted read-only
-  // from that file, not invented). The previous list here ("Grocery",
-  // "Dairy", "Pharmacy", ...) didn't correspond to any real category id,
-  // so tapping it always returned zero products (see productService.ts's
-  // getProductsByCategory). Emoji icons are this app's own presentational
-  // choice, same as before — the catalog tree's own icons are Lucide icon
-  // names, which this app doesn't use.
-  const categories = [
-    { id: "FASHION", name: "Fashion", icon: "👕" },
-    { id: "GROCERY", name: "Grocery", icon: "🛒" },
-    { id: "BEAUTY", name: "Beauty", icon: "💄" },
-    { id: "ELECTRONICS", name: "Electronics", icon: "🔌" },
-    { id: "MOBILES", name: "Mobiles", icon: "📱" },
-    { id: "APPLIANCES", name: "Appliances", icon: "🏠" },
-    { id: "FURNITURE", name: "Furniture", icon: "🛋️" },
-    { id: "BOOKS", name: "Books", icon: "📚" },
-    { id: "KIDS_FASHION", name: "Kids Fashion", icon: "👶" },
+  // Matches the website's own customer-facing category bar exactly —
+  // same 10 names, same order (yogi/components/CategoryStrip.tsx) — not
+  // the 9 raw catalog-tree top-level ids used before. Men Fashion/Women
+  // Fashion are real catalog SUB-categories under Fashion (ids
+  // FASHION_MEN/FASHION_WOMEN), never their own top-level category, so
+  // they're matched via `subCategoryId`; every other entry here is a real
+  // top-level category matched via `categoryId` — same field CategoryStrip
+  // resolves to via findNodeByName()/isTopLevelCategory() on the web.
+  // Ids/names verified read-only against yogi/lib/catalog/catalogTree.ts,
+  // not invented. Emoji icons are this app's own presentational choice,
+  // same as before.
+  const categories: {
+    id: string;
+    name: string;
+    icon: string;
+    field: "categoryId" | "subCategoryId";
+  }[] = [
+    { id: "GROCERY", name: "Grocery", icon: "🛒", field: "categoryId" },
+    { id: "FASHION_MEN", name: "Men Fashion", icon: "👕", field: "subCategoryId" },
+    { id: "FASHION_WOMEN", name: "Women Fashion", icon: "👗", field: "subCategoryId" },
+    { id: "KIDS_FASHION", name: "Kids Fashion", icon: "👶", field: "categoryId" },
+    { id: "BEAUTY", name: "Beauty", icon: "💄", field: "categoryId" },
+    { id: "ELECTRONICS", name: "Electronics", icon: "🔌", field: "categoryId" },
+    { id: "FURNITURE", name: "Furniture", icon: "🛋️", field: "categoryId" },
+    { id: "MOBILES", name: "Mobiles", icon: "📱", field: "categoryId" },
+    { id: "APPLIANCES", name: "Appliances", icon: "🏠", field: "categoryId" },
+    { id: "BOOKS", name: "Books", icon: "📚", field: "categoryId" },
   ];
 
   const trendingProducts = products.slice(0, 8);
@@ -433,7 +442,9 @@ export default function HomeScreen() {
                 style={styles.category}
                 onPress={() =>
                   navigation.navigate("Search", {
-                    categoryId: item.id,
+                    ...(item.field === "subCategoryId"
+                      ? { subCategoryId: item.id }
+                      : { categoryId: item.id }),
                     categoryName: item.name,
                   })
                 }

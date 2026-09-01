@@ -51,12 +51,18 @@ export type RootStackParamList = {
 
   Search:
     | {
-        // Real YOMICO catalog-tree node id (e.g. "FASHION"), the same
-        // value stored on product docs as `categoryId` — NOT a display
-        // name. categoryName is carried alongside purely for the active
-        // -category chip's label so SearchScreen never has to resolve an
-        // id back to a name.
+        // Real YOMICO catalog-tree node ids — the same values stored on
+        // product docs as `categoryId`/`subCategoryId` — NOT display
+        // names. Exactly one of these two is set at a time: some
+        // customer-facing categories (Men Fashion, Women Fashion) are
+        // sub-categories in the real catalog, not top-level categories,
+        // so they're matched via subCategoryId instead of categoryId —
+        // mirrors the web's own top-level-vs-sub-category branch
+        // (yogi/app/category/[name]/page.tsx). categoryName is carried
+        // alongside purely for the active-category chip's label so
+        // SearchScreen never has to resolve an id back to a name.
         categoryId?: string;
+        subCategoryId?: string;
         categoryName?: string;
       }
     | undefined;

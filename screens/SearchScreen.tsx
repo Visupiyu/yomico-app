@@ -23,6 +23,7 @@ import {
 import {
   getProducts,
   getProductsByCategory,
+  getProductsBySubCategory,
 } from "../services/productService";
 
 import ProductCard from "../components/ProductCard";
@@ -81,18 +82,29 @@ export default function SearchScreen() {
     >
   >();
 
-  // activeCategoryId is the real catalog-tree node id (e.g. "FASHION"),
-  // used for the Firestore query. activeCategoryName is only for the
-  // chip's display label, since an id like "FASHION" isn't meant to be
-  // shown to the customer.
+  // Real catalog-tree node ids used for the Firestore query — exactly one
+  // of these two is ever set, mirroring the website's own top-level-vs
+  // -sub-category distinction (some customer-facing categories, like Men
+  // /Women Fashion, are sub-categories, matched via subCategoryId instead
+  // of categoryId). activeCategoryName is only for the chip's display
+  // label, since an id like "FASHION_MEN" isn't meant to be shown to the
+  // customer.
   const [activeCategoryId, setActiveCategoryId] =
     useState(
       route.params?.categoryId || null
     );
 
+  const [activeSubCategoryId, setActiveSubCategoryId] =
+    useState(
+      route.params?.subCategoryId || null
+    );
+
   const [activeCategoryName, setActiveCategoryName] =
     useState(
-      route.params?.categoryName || route.params?.categoryId || null
+      route.params?.categoryName ||
+        route.params?.categoryId ||
+        route.params?.subCategoryId ||
+        null
     );
 
   const [searchText, setSearchText] =
@@ -124,7 +136,7 @@ export default function SearchScreen() {
 
     loadProducts();
 
-  }, [activeCategoryId]);
+  }, [activeCategoryId, activeSubCategoryId]);
 
 
   async function loadProducts() {
@@ -133,7 +145,9 @@ export default function SearchScreen() {
 
       setLoading(true);
 
-      const data = activeCategoryId
+      const data = activeSubCategoryId
+        ? await getProductsBySubCategory(activeSubCategoryId)
+        : activeCategoryId
         ? await getProductsByCategory(activeCategoryId)
         : await getProducts();
 
@@ -308,7 +322,7 @@ export default function SearchScreen() {
 
       {/* ACTIVE CATEGORY CHIP */}
 
-      {activeCategoryId && (
+      {(activeCategoryId || activeSubCategoryId) && (
 
         <View style={styles.categoryChipRow}>
 
@@ -321,6 +335,7 @@ export default function SearchScreen() {
             <TouchableOpacity
               onPress={() => {
                 setActiveCategoryId(null);
+                setActiveSubCategoryId(null);
                 setActiveCategoryName(null);
               }}
             >
