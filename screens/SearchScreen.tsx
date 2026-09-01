@@ -81,9 +81,18 @@ export default function SearchScreen() {
     >
   >();
 
-  const [activeCategory, setActiveCategory] =
+  // activeCategoryId is the real catalog-tree node id (e.g. "FASHION"),
+  // used for the Firestore query. activeCategoryName is only for the
+  // chip's display label, since an id like "FASHION" isn't meant to be
+  // shown to the customer.
+  const [activeCategoryId, setActiveCategoryId] =
     useState(
-      route.params?.category || null
+      route.params?.categoryId || null
+    );
+
+  const [activeCategoryName, setActiveCategoryName] =
+    useState(
+      route.params?.categoryName || route.params?.categoryId || null
     );
 
   const [searchText, setSearchText] =
@@ -115,7 +124,7 @@ export default function SearchScreen() {
 
     loadProducts();
 
-  }, [activeCategory]);
+  }, [activeCategoryId]);
 
 
   async function loadProducts() {
@@ -124,8 +133,8 @@ export default function SearchScreen() {
 
       setLoading(true);
 
-      const data = activeCategory
-        ? await getProductsByCategory(activeCategory)
+      const data = activeCategoryId
+        ? await getProductsByCategory(activeCategoryId)
         : await getProducts();
 
       setProducts(data);
@@ -299,20 +308,21 @@ export default function SearchScreen() {
 
       {/* ACTIVE CATEGORY CHIP */}
 
-      {activeCategory && (
+      {activeCategoryId && (
 
         <View style={styles.categoryChipRow}>
 
           <View style={styles.categoryChip}>
 
             <Text style={styles.categoryChipText}>
-              {activeCategory}
+              {activeCategoryName}
             </Text>
 
             <TouchableOpacity
-              onPress={() =>
-                setActiveCategory(null)
-              }
+              onPress={() => {
+                setActiveCategoryId(null);
+                setActiveCategoryName(null);
+              }}
             >
 
               <MaterialIcons

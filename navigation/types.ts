@@ -51,7 +51,13 @@ export type RootStackParamList = {
 
   Search:
     | {
-        category?: string;
+        // Real YOMICO catalog-tree node id (e.g. "FASHION"), the same
+        // value stored on product docs as `categoryId` — NOT a display
+        // name. categoryName is carried alongside purely for the active
+        // -category chip's label so SearchScreen never has to resolve an
+        // id back to a name.
+        categoryId?: string;
+        categoryName?: string;
       }
     | undefined;
 

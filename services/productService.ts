@@ -112,12 +112,19 @@ export async function getProductById(id: string) {
   }
 }
 
-export async function getProductsByCategory(category: string) {
+export async function getProductsByCategory(categoryId: string) {
   try {
 
+    // Real product docs store `categoryId` (a catalog-tree node id, e.g.
+    // "FASHION") — the plain-text `category` field only ever exists as
+    // normalizeProduct()'s own client-side convenience alias above and is
+    // never written to Firestore, so a `category` query always matched
+    // zero real products. This mirrors the web's own top-level category
+    // query (yogi/app/category/[name]/page.tsx: `where("categoryId", "==",
+    // matchedNode.id)`).
     const q = query(
       collection(db, "products"),
-      where("category", "==", category),
+      where("categoryId", "==", categoryId),
       orderBy("createdAt", "desc")
     );
 

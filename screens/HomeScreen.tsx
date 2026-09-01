@@ -45,22 +45,30 @@ export default function HomeScreen() {
   const heroRef = useRef<ScrollView>(null);
   const [heroIndex, setHeroIndex] = useState(0);
 
+  // categoryId values are the real YOMICO catalog-tree top-level node ids
+  // (yogi/lib/catalog/catalogTree.ts) — the same values stored on product
+  // docs as `categoryId`, NOT display names. Kept null where a slide isn't
+  // meant to filter by category at all.
   const heroSlides = [
     {
       image: require("../assets/home/hero-smartphones.png"),
-      category: "Mobiles",
+      categoryId: "MOBILES",
+      categoryName: "Mobiles",
     },
     {
       image: require("../assets/home/hero-big-deals.png"),
-      category: null,
+      categoryId: null,
+      categoryName: null,
     },
     {
       image: require("../assets/home/hero-home-appliances.png"),
-      category: null,
+      categoryId: null,
+      categoryName: null,
     },
     {
       image: require("../assets/home/hero-fashion.png"),
-      category: "Fashion",
+      categoryId: "FASHION",
+      categoryName: "Fashion",
     },
   ];
 
@@ -176,15 +184,24 @@ export default function HomeScreen() {
     }
   }
 
+  // The real, active top-level YOMICO categories (yogi/lib/catalog/
+  // catalogTree.ts's 9 level-1 nodes — ids/names/order extracted read-only
+  // from that file, not invented). The previous list here ("Grocery",
+  // "Dairy", "Pharmacy", ...) didn't correspond to any real category id,
+  // so tapping it always returned zero products (see productService.ts's
+  // getProductsByCategory). Emoji icons are this app's own presentational
+  // choice, same as before — the catalog tree's own icons are Lucide icon
+  // names, which this app doesn't use.
   const categories = [
-    { name: "Grocery", icon: "🍎" },
-    { name: "Mobiles", icon: "📱" },
-    { name: "Fashion", icon: "👕" },
-    { name: "Beauty", icon: "💄" },
-    { name: "Furniture", icon: "🛋️" },
-    { name: "Kids", icon: "👶" },
-    { name: "Dairy", icon: "🥛" },
-    { name: "Pharmacy", icon: "💊" },
+    { id: "FASHION", name: "Fashion", icon: "👕" },
+    { id: "GROCERY", name: "Grocery", icon: "🛒" },
+    { id: "BEAUTY", name: "Beauty", icon: "💄" },
+    { id: "ELECTRONICS", name: "Electronics", icon: "🔌" },
+    { id: "MOBILES", name: "Mobiles", icon: "📱" },
+    { id: "APPLIANCES", name: "Appliances", icon: "🏠" },
+    { id: "FURNITURE", name: "Furniture", icon: "🛋️" },
+    { id: "BOOKS", name: "Books", icon: "📚" },
+    { id: "KIDS_FASHION", name: "Kids Fashion", icon: "👶" },
   ];
 
   const trendingProducts = products.slice(0, 8);
@@ -408,14 +425,17 @@ export default function HomeScreen() {
             data={categories}
             horizontal
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.name}
+            keyExtractor={(item) => item.id}
             contentContainerStyle={styles.categoryList}
             renderItem={({ item }) => (
               <TouchableOpacity
                 activeOpacity={0.8}
                 style={styles.category}
                 onPress={() =>
-                  navigation.navigate("Search", { category: item.name })
+                  navigation.navigate("Search", {
+                    categoryId: item.id,
+                    categoryName: item.name,
+                  })
                 }
               >
                 <View style={styles.categoryIcon}>
@@ -450,8 +470,11 @@ export default function HomeScreen() {
                 activeOpacity={0.95}
                 style={styles.heroSlide}
                 onPress={() =>
-                  slide.category
-                    ? navigation.navigate("Search", { category: slide.category })
+                  slide.categoryId
+                    ? navigation.navigate("Search", {
+                        categoryId: slide.categoryId,
+                        categoryName: slide.categoryName || undefined,
+                      })
                     : navigation.navigate("Search")
                 }
               >
