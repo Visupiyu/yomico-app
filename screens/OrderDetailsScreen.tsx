@@ -664,7 +664,25 @@ async function cancelOrder() {
     Order Tracking
   </Text>
 
-  {order.status === "Cancelled" ? (
+  {/* "Delivery Failed" is a real, backend-legal status (Out For Delivery
+      -> Delivery Failed -> Out For Delivery, see firestore.rules'
+      isLegalOrderStatusTransition) but isn't one of the six tracker
+      stages/labels. Treating it as "Out For Delivery" here — for the
+      stage-activation checks only, not the labels or the Cancelled
+      banner above — holds the tracker at that position instead of every
+      stage past "Order placed" going blank, matching the web's own
+      getStep() (yogi/lib/orderTracking.ts), which maps Delivery Failed
+      to the same step as Out For Delivery for exactly this reason: a
+      failed attempt doesn't erase progress already made. */}
+  {(() => {
+    const trackingStatus =
+      order.status === "Delivery Failed"
+        ? "Out For Delivery"
+        : order.status;
+
+    return (
+
+  order.status === "Cancelled" ? (
 
     <View style={styles.cancelledBanner}>
 
@@ -707,7 +725,7 @@ async function cancelOrder() {
             "Shipped",
             "Out For Delivery",
             "Delivered",
-          ].includes(order.status)
+          ].includes(trackingStatus)
             ? styles.trackingCircleActive
             : styles.trackingCircle
         }
@@ -733,7 +751,7 @@ async function cancelOrder() {
             "Shipped",
             "Out For Delivery",
             "Delivered",
-          ].includes(order.status)
+          ].includes(trackingStatus)
             ? styles.trackingCircleActive
             : styles.trackingCircle
         }
@@ -758,7 +776,7 @@ async function cancelOrder() {
             "Shipped",
             "Out For Delivery",
             "Delivered",
-          ].includes(order.status)
+          ].includes(trackingStatus)
             ? styles.trackingCircleActive
             : styles.trackingCircle
         }
@@ -782,7 +800,7 @@ async function cancelOrder() {
           [
             "Out For Delivery",
             "Delivered",
-          ].includes(order.status)
+          ].includes(trackingStatus)
             ? styles.trackingCircleActive
             : styles.trackingCircle
         }
@@ -821,7 +839,9 @@ async function cancelOrder() {
 
   </View>
 
-  )}
+  )
+    );
+  })()}
 
 </View>
 {order.status === "Pending" && (
