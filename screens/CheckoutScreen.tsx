@@ -129,15 +129,6 @@ const [cartItemsTotalMRP, setCartItemsTotalMRP] =
   const [showAddressPicker, setShowAddressPicker] =
     useState(false);
 
-  const DELIVERY_SLOTS = [
-    "Today, 4 PM - 8 PM",
-    "Tomorrow, 9 AM - 12 PM",
-    "Tomorrow, 4 PM - 8 PM",
-  ];
-
-  const [deliverySlot, setDeliverySlot] =
-    useState(DELIVERY_SLOTS[0]);
-
   const [couponCode, setCouponCode] =
     useState("");
 
@@ -585,7 +576,6 @@ setCartItemsTotalMRP(
               customerName: name.trim(),
               phone: mobile.trim(),
               address: flattenedAddress,
-              deliverySlot,
               couponCode: appliedCoupon?.code || null,
             }),
           }
@@ -748,6 +738,30 @@ setCartItemsTotalMRP(
       setLoading(false);
 
     }
+
+  }
+
+  // Same formula and en-IN formatting the website's checkout/order-creation
+  // routes already use (today + 5 calendar days) — see yogi/app/checkout
+  // /page.tsx and yogi/app/api/place-order/route.ts's deliveryDateString().
+  // Computed from "now" since no order exists yet at checkout time; this
+  // replaces the old customer-selectable Today/Tomorrow time-window picker,
+  // which promised delivery windows the confirm-then-fulfil workflow
+  // couldn't actually guarantee.
+  function getEstimatedDeliveryDate() {
+
+    const date = new Date();
+
+    date.setDate(date.getDate() + 5);
+
+    return date.toLocaleDateString(
+      "en-IN",
+      {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }
+    );
 
   }
 
@@ -998,46 +1012,6 @@ setCartItemsTotalMRP(
         </View>
 
 
-        {/* DELIVERY SLOT */}
-
-        <View style={styles.paymentCard}>
-
-          <Text style={styles.sectionTitle}>
-            Delivery Slot
-          </Text>
-
-          <View style={styles.slotRow}>
-
-            {DELIVERY_SLOTS.map((slot) => (
-
-              <TouchableOpacity
-                key={slot}
-                style={[
-                  styles.slotChip,
-                  deliverySlot === slot && styles.slotChipActive,
-                ]}
-                activeOpacity={0.8}
-                onPress={() => setDeliverySlot(slot)}
-              >
-
-                <Text
-                  style={[
-                    styles.slotChipText,
-                    deliverySlot === slot && styles.slotChipTextActive,
-                  ]}
-                >
-                  {slot}
-                </Text>
-
-              </TouchableOpacity>
-
-            ))}
-
-          </View>
-
-        </View>
-
-
         {/* BANK OFFER */}
 
         <View style={styles.bankOfferBanner}>
@@ -1277,6 +1251,27 @@ setCartItemsTotalMRP(
       </Text>
 
     </View>
+
+  </View>
+
+
+  {/* ESTIMATED DELIVERY */}
+
+  <View
+    style={styles.summaryRow}
+  >
+
+    <Text
+      style={styles.summaryLabel}
+    >
+      Estimated delivery
+    </Text>
+
+    <Text
+      style={styles.summaryValue}
+    >
+      {getEstimatedDeliveryDate()}
+    </Text>
 
   </View>
 
@@ -1578,41 +1573,6 @@ const styles =
       fontSize: 11,
       color: "#777777",
       marginTop: 3,
-    },
-
-
-    slotRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-    },
-
-
-    slotChip: {
-      borderWidth: 1,
-      borderColor: "#DDDDDD",
-      borderRadius: 16,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      marginRight: 8,
-      marginBottom: 8,
-    },
-
-
-    slotChipActive: {
-      backgroundColor: "#16A34A",
-      borderColor: "#16A34A",
-    },
-
-
-    slotChipText: {
-      fontSize: 11,
-      fontWeight: "600",
-      color: "#555555",
-    },
-
-
-    slotChipTextActive: {
-      color: "#FFFFFF",
     },
 
 

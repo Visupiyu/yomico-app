@@ -419,8 +419,13 @@ function removeReviewPhoto(index: number) {
 }
 
 
+  // daysToAdd lets Estimated Delivery reuse this same helper/formatting —
+  // same formula and en-IN shape the website's checkout/order-creation
+  // routes already use (order date + 5 calendar days; see yogi/app/checkout
+  // /page.tsx and yogi/app/api/place-order/route.ts's deliveryDateString()).
   function formatDate(
-    timestamp: any
+    timestamp: any,
+    daysToAdd: number = 0
   ) {
 
     if (
@@ -430,8 +435,13 @@ function removeReviewPhoto(index: number) {
       return "Date unavailable";
     }
 
-    return timestamp
-      .toDate()
+    const date = timestamp.toDate();
+
+    if (daysToAdd) {
+      date.setDate(date.getDate() + daysToAdd);
+    }
+
+    return date
       .toLocaleDateString(
         "en-IN",
         {
@@ -1057,17 +1067,6 @@ async function cancelOrder() {
             {order.phone}
           </Text>
 
-          {order.deliverySlot ? (
-
-            <Text
-              style={styles.mobile}
-            >
-              Delivery Slot:{" "}
-              {order.deliverySlot}
-            </Text>
-
-          ) : null}
-
         </View>
 
 
@@ -1172,6 +1171,28 @@ async function cancelOrder() {
             >
               {formatDate(
                 order.createdAt
+              )}
+            </Text>
+
+          </View>
+
+
+          <View
+            style={styles.infoRow}
+          >
+
+            <Text
+              style={styles.infoLabel}
+            >
+              Estimated Delivery
+            </Text>
+
+            <Text
+              style={styles.infoValue}
+            >
+              {formatDate(
+                order.createdAt,
+                5
               )}
             </Text>
 
