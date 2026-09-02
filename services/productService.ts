@@ -40,8 +40,14 @@ function normalizeProduct(id: string, data: any) {
     );
 
   return {
-    id,
+    // Spread raw doc data FIRST, then set `id` LAST — some product docs carry
+    // a stray `id: ""` field (written by the seller form), and the real
+    // Firestore document id must win over it. Mirrors the website's
+    // toLegacyProduct (yogi/lib/products/legacyDisplay.ts). The previous
+    // order ({ id, ...data }) let the stray "" clobber the real id, producing
+    // empty/duplicate React keys and broken product navigation/cart.
     ...data,
+    id,
     name: data.name || data.title || "",
     price: data.price ?? data.sellingPrice ?? 0,
     image:
