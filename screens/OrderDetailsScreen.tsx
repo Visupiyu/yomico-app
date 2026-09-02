@@ -1057,6 +1057,17 @@ async function cancelOrder() {
             {order.phone}
           </Text>
 
+          {order.deliverySlot ? (
+
+            <Text
+              style={styles.mobile}
+            >
+              Delivery Slot:{" "}
+              {order.deliverySlot}
+            </Text>
+
+          ) : null}
+
         </View>
 
 
