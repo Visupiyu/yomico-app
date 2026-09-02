@@ -1,6 +1,5 @@
 import React, {
   useCallback,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -74,14 +73,13 @@ export default function HomeScreen() {
 
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const [defaultAddress, setDefaultAddress] = useState<any>(null);
 
   const [newsletterEmail, setNewsletterEmail] = useState("");
 
   const [recentlyViewedProducts, setRecentlyViewedProducts] = useState<any[]>([]);
-
-  const [countdown, setCountdown] = useState("");
 
   // Home stays mounted while switching tabs, so a mount-only load
   // would never reflect a product viewed elsewhere (Recently Viewed)
@@ -95,28 +93,6 @@ export default function HomeScreen() {
       loadRecentlyViewed();
     }, [])
   );
-
-  useEffect(() => {
-    function updateCountdown() {
-      const now = new Date();
-      const endOfDay = new Date(now);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const diff = endOfDay.getTime() - now.getTime();
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff / (1000 * 60)) % 60);
-      const seconds = Math.floor((diff / 1000) % 60);
-
-      setCountdown(
-        `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
-      );
-    }
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   async function loadRecentlyViewed() {
     const data = await getRecentlyViewed(8);
@@ -175,10 +151,15 @@ export default function HomeScreen() {
 
   async function loadProducts() {
     try {
+      setError(false);
       const data = await getProducts();
       setProducts(data);
-    } catch (error) {
-      console.log("Product loading error:", error);
+    } catch (err) {
+      // getProducts() now throws on a real Firestore failure instead of
+      // silently returning [], so a failed load shows a proper error +
+      // Retry rather than a misleading "No products available".
+      console.log("Product loading error:", err);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -213,25 +194,92 @@ export default function HomeScreen() {
     { id: "BOOKS", name: "Books", icon: "📚", field: "categoryId" },
   ];
 
-  const trendingProducts = products.slice(0, 8);
-  const bestSellerProducts = [...products]
-    .sort(
-      (a, b) =>
-        (Number(b.rating || b.averageRating) || 0) -
-        (Number(a.rating || a.averageRating) || 0)
-    )
+  // Trending = most-viewed, matching the website's TrendingProducts query
+  // (yogi/components/TrendingProducts.jsx: orderBy("views","desc") limit 8).
+  // The previous mobile version took the first 8 by createdAt (newest), a
+  // different metric.
+  const trendingProducts = [...products]
+    .sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0))
     .slice(0, 8);
 
-  // ========== SHARED RENDER ==========
-  function renderProducts(data: any[]) {
-    if (loading) {
-      return (
-        <View style={styles.loadingBox}>
-          <Text style={styles.loadingText}>Loading products...</Text>
-        </View>
+  // Best Sellers = most units sold, matching the website's BestSellers query
+  // (yogi/components/BestSellers.jsx: orderBy("sales","desc") limit 12). The
+  // previous mobile version ranked by rating, a different metric.
+  const bestSellerProducts = [...products]
+    .sort((a, b) => (Number(b.sales) || 0) - (Number(a.sales) || 0))
+    .slice(0, 12);
+
+  // Best Deals = products genuinely discounted 40%+ off MRP — the website's
+  // authoritative "Best Deals" definition (yogi/components/home/FlashSale.jsx
+  // links to /search?minDiscount=40). No countdown and no fabricated sale
+  // labels: the website deliberately removed both for lack of backing data.
+  const bestDeals = products.filter((p) => {
+    const price = Number(p.price) || 0;
+    const mrp = Number(p.mrp) || 0;
+    const explicit = Number(p.discountPercent) || 0;
+    const derived = mrp > 0 && mrp > price ? ((mrp - price) / mrp) * 100 : 0;
+    return Math.max(explicit, derived) >= 40;
+  });
+
+  // The 8 per-category product shelves the website Home renders
+  // (yogi/app/page.tsx CATEGORY_ROWS), in the same order. `field` mirrors the
+  // website's top-level-vs-subcategory distinction — Men/Women Fashion are
+  // subcategories of Fashion, matched on subCategoryId. Ids verified against
+  // yogi/lib/catalog/catalogTree.ts, not invented.
+  const CATEGORY_SHELVES: {
+    title: string;
+    id: string;
+    field: "categoryId" | "subCategoryId";
+    categoryName: string;
+  }[] = [
+    { title: "📱 Mobiles", id: "MOBILES", field: "categoryId", categoryName: "Mobiles" },
+    { title: "👔 Men Fashion", id: "FASHION_MEN", field: "subCategoryId", categoryName: "Men Fashion" },
+    { title: "👗 Women Fashion", id: "FASHION_WOMEN", field: "subCategoryId", categoryName: "Women Fashion" },
+    { title: "🧒 Kids Fashion", id: "KIDS_FASHION", field: "categoryId", categoryName: "Kids Fashion" },
+    { title: "💻 Electronics", id: "ELECTRONICS", field: "categoryId", categoryName: "Electronics" },
+    { title: "💄 Beauty", id: "BEAUTY", field: "categoryId", categoryName: "Beauty" },
+    { title: "🏠 Appliances", id: "APPLIANCES", field: "categoryId", categoryName: "Appliances" },
+    { title: "🛒 Grocery", id: "GROCERY", field: "categoryId", categoryName: "Grocery" },
+  ];
+
+  // Client-side category filter over the single already-loaded product list —
+  // exactly how the website's byCategory() derives its shelves from one fetch
+  // (yogi/app/page.tsx), rather than issuing 8 extra Firestore queries. A
+  // subcategory shelf matches subCategoryId OR leafCategoryId, mirroring the
+  // website.
+  function productsForShelf(shelf: {
+    id: string;
+    field: "categoryId" | "subCategoryId";
+  }) {
+    if (shelf.field === "subCategoryId") {
+      return products.filter(
+        (p) => p.subCategoryId === shelf.id || p.leafCategoryId === shelf.id
       );
     }
+    return products.filter((p) => p.categoryId === shelf.id);
+  }
 
+  // ========== SHARED RENDER ==========
+  // Lightweight placeholder row while products load — the mobile equivalent
+  // of the website's ProductSkeleton cards, so a slow load reads as
+  // "loading" rather than "empty".
+  function renderSkeletonRow() {
+    return (
+      <View style={styles.skeletonRow}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={styles.skeletonCard}>
+            <View style={styles.skeletonImage} />
+            <View style={styles.skeletonLineWide} />
+            <View style={styles.skeletonLineNarrow} />
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  function renderProducts(data: any[]) {
+    // Loading is handled once at the section-group level (single skeleton),
+    // so this only distinguishes empty from populated.
     if (!data.length) {
       return (
         <View style={styles.emptyBox}>
@@ -252,119 +300,30 @@ export default function HomeScreen() {
     );
   }
 
-  // ========== DEALS FOR YOU (Amazon style - 4 products in one card) ==========
-  function renderDealsProducts(data: any[]) {
-    if (loading) {
-      return (
-        <View style={styles.loadingBox}>
-          <Text style={styles.loadingText}>Loading products...</Text>
-        </View>
-      );
+  // categoryParam, when provided, opens that category in Search (same params
+  // the category icon strip uses) instead of the generic search screen.
+  function renderSection(
+    title: string,
+    data: any[],
+    categoryParam?: {
+      categoryId?: string;
+      subCategoryId?: string;
+      categoryName?: string;
     }
-
-    if (!data.length) {
-      return (
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>No deals available</Text>
-        </View>
-      );
-    }
-
-    // Group products into sets of 4
-    const dealCards = [];
-    for (let i = 0; i < data.length; i += 4) {
-      dealCards.push(data.slice(i, i + 4));
-    }
-
-    return (
-      <FlatList
-        data={dealCards}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(_, index) => `deal-card-${index}`}
-        contentContainerStyle={styles.dealsShelfList}
-        renderItem={({ item: group, index }) => (
-          <View style={styles.dealLargeCard}>
-            {/* Header */}
-            <View style={styles.dealCardHeader}>
-              <Text style={styles.dealCardTitle}>Deals for you</Text>
-              <Text style={styles.dealCardArrow}>›</Text>
-            </View>
-
-            {/* 2 × 2 Grid */}
-            <View style={styles.dealGrid}>
-              {group.map((product: any, productIndex: number) => {
-                const dealLabels = [
-                  "Freedom Sale Mega Deal",
-                  "Freedom Sale Deal",
-                  "Mega Deal",
-                  "Hot Deal",
-                ];
-                const dealText = dealLabels[productIndex % dealLabels.length];
-
-                return (
-                  <ProductCard
-                    key={product.id || `${index}-${productIndex}`}
-                    product={product}
-                    variant="compact"
-                    dealLabel={dealText}
-                  />
-                );
-              })}
-            </View>
-          </View>
-        )}
-      />
-    );
-  }
-
-  // ========== BEST SELLERS ==========
-  function renderBestSellerProducts(data: any[]) {
-    if (loading) {
-      return (
-        <View style={styles.loadingBox}>
-          <Text style={styles.loadingText}>Loading products...</Text>
-        </View>
-      );
-    }
-
-    if (!data.length) {
-      return (
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>No best sellers available</Text>
-        </View>
-      );
-    }
-
-    return (
-      <FlatList
-        data={data.slice(0, 5)}
-        horizontal
-        keyExtractor={(item) => item.id}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.bestSellerProductList}
-        renderItem={({ item, index }) => (
-          <ProductCard
-            product={item}
-            variant="featured"
-            rankBadge={`#${index + 1} BEST SELLER`}
-          />
-        )}
-      />
-    );
-  }
-
-  function renderSection(title: string, data: any[]) {
+  ) {
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{title}</Text>
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => navigation.navigate("Search")}
+            onPress={() =>
+              categoryParam
+                ? navigation.navigate("Search", categoryParam)
+                : navigation.navigate("Search")
+            }
           >
-            <Text style={styles.seeAll}>See all</Text>
+            <Text style={styles.seeAll}>View All</Text>
           </TouchableOpacity>
         </View>
         {renderProducts(data)}
@@ -510,47 +469,64 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* DEALS FOR YOU - Amazon Style */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🔥 Deals for You</Text>
+        {/* PRODUCT SECTIONS — all derive from the single products load, so a
+            failure/empty is handled once here (error + Retry, or empty),
+            never a misleading per-section "No products available". */}
+        {loading ? (
+          <View style={styles.section}>{renderSkeletonRow()}</View>
+        ) : error ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorTitle}>Unable to load products.</Text>
+            <Text style={styles.errorSubtitle}>Please try again.</Text>
             <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate("Search")}
+              style={styles.retryButton}
+              activeOpacity={0.85}
+              onPress={loadProducts}
             >
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
           </View>
-
-          <View style={styles.countdownBanner}>
-            <MaterialIcons name="bolt" size={16} color="#FFFFFF" />
-            <Text style={styles.countdownText}>
-              Today's deals end in {countdown}
+        ) : products.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>
+              No products available right now.
             </Text>
           </View>
+        ) : (
+          <>
+            {/* BEST DEALS — real 40%+ off-MRP products; no countdown, no
+                fabricated labels (matches website "Best Deals"). Hidden when
+                nothing genuinely qualifies. */}
+            {bestDeals.length > 0 &&
+              renderSection("🏷️ Best Deals", bestDeals)}
 
-          {renderDealsProducts(products)}
-        </View>
+            {/* BEST SELLERS — ranked by units sold */}
+            {renderSection("🏆 Best Sellers", bestSellerProducts)}
 
-        {/* BEST SELLERS */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🏆 Best Sellers</Text>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate("Search")}
-            >
-              <Text style={styles.seeAll}>See all</Text>
-            </TouchableOpacity>
-          </View>
-          {renderBestSellerProducts(bestSellerProducts)}
-        </View>
+            {/* TRENDING — ranked by views */}
+            {renderSection("Trending Products", trendingProducts)}
 
-        {/* TRENDING */}
-        {renderSection("Trending Products", trendingProducts)}
+            {/* PER-CATEGORY SHELVES — same 8 shelves/order as website Home */}
+            {CATEGORY_SHELVES.map((shelf) => {
+              const shelfProducts = productsForShelf(shelf);
+              if (shelfProducts.length === 0) return null;
+              const categoryParam =
+                shelf.field === "subCategoryId"
+                  ? { subCategoryId: shelf.id, categoryName: shelf.categoryName }
+                  : { categoryId: shelf.id, categoryName: shelf.categoryName };
+              return (
+                <React.Fragment key={shelf.id}>
+                  {renderSection(shelf.title, shelfProducts, categoryParam)}
+                </React.Fragment>
+              );
+            })}
+          </>
+        )}
 
-        {/* RECENTLY VIEWED */}
-        {renderSection("Recently Viewed", recentlyViewedProducts)}
+        {/* RECENTLY VIEWED — independent source (recentlyViewedService); only
+            shown when the customer actually has recently-viewed items. */}
+        {recentlyViewedProducts.length > 0 &&
+          renderSection("Recently Viewed", recentlyViewedProducts)}
 
         {/* WHY SHOP YOMICO */}
         <View style={styles.infoSection}>
@@ -830,15 +806,6 @@ const styles = StyleSheet.create({
   productList: {
     paddingHorizontal: 12,
   },
-  loadingBox: {
-    height: 150,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loadingText: {
-    fontSize: 12,
-    color: "#777777",
-  },
   emptyBox: {
     height: 100,
     alignItems: "center",
@@ -849,102 +816,71 @@ const styles = StyleSheet.create({
     color: "#777777",
   },
 
-  // ========== DEALS FOR YOU (Amazon style) ==========
-  countdownBanner: {
+  // Loading skeleton (placeholder cards while products load).
+  skeletonRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#C62828",
-    marginHorizontal: 13,
-    marginBottom: 10,
-    paddingVertical: 7,
-    borderRadius: 8,
-  },
-  countdownText: {
-    marginLeft: 6,
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  dealsShelfList: {
     paddingHorizontal: 12,
   },
-  dealLargeCard: {
-    width: Dimensions.get("window").width - 32,
-    backgroundColor: "#FFF7F0",
+  skeletonCard: {
+    width: 158,
+    marginRight: 10,
+    marginVertical: 5,
+  },
+  skeletonImage: {
+    height: 142,
+    borderRadius: 13,
+    backgroundColor: "#ECEFEE",
+  },
+  skeletonLineWide: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#ECEFEE",
+    marginTop: 10,
+  },
+  skeletonLineNarrow: {
+    height: 12,
+    width: "55%",
+    borderRadius: 6,
+    backgroundColor: "#ECEFEE",
+    marginTop: 8,
+  },
+
+  // Product-load error state (with Retry).
+  errorBox: {
+    marginHorizontal: 12,
+    marginVertical: 8,
+    paddingVertical: 26,
+    paddingHorizontal: 16,
     borderRadius: 16,
-    padding: 14,
-    marginRight: 12,
+    backgroundColor: "#FEF2F2",
     borderWidth: 1,
-    borderColor: "#F5E6D8",
-  },
-  dealCardHeader: {
-    flexDirection: "row",
+    borderColor: "#FECACA",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
   },
-  dealCardTitle: {
-    fontSize: 18,
+  errorTitle: {
+    fontSize: 14,
     fontWeight: "700",
-    color: "#111111",
+    color: "#DC2626",
   },
-  dealCardArrow: {
-    fontSize: 26,
-    color: "#333",
-    fontWeight: "300",
-  },
-  dealGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  dealProductTile: {
-    width: "48%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    marginBottom: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
-  },
-  dealTileImageBox: {
-    width: "100%",
-    height: 110,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  dealTileImage: {
-    width: "90%",
-    height: "90%",
-  },
-  dealTileBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#C62828",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    marginBottom: 6,
-  },
-  dealTileBadgeText: {
-    color: "#FFFFFF",
+  errorSubtitle: {
     fontSize: 12,
-    fontWeight: "700",
+    color: "#EF4444",
+    marginTop: 4,
   },
-  dealTileText: {
+  retryButton: {
+    marginTop: 14,
+    backgroundColor: "#DC2626",
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
     fontSize: 13,
-    fontWeight: "600",
-    color: "#C62828",
-    lineHeight: 17,
   },
 
   // Best Sellers
-  bestSellerProductList: {
-    paddingHorizontal: 12,
-    paddingRight: 4,
-  },
   bestSellerCard: {
     width: 168,
     backgroundColor: "#FFFFFF",

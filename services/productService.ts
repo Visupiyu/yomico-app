@@ -63,28 +63,29 @@ function normalizeProduct(id: string, data: any) {
 }
 
 export async function getProducts() {
-  try {
+  // Deliberately NO try/catch that returns [] — swallowing a Firestore
+  // failure (permission/network/timeout) made a real error
+  // indistinguishable from an empty catalog, so the Home screen showed
+  // "No products available" for a failed request with no way to retry.
+  // Letting the error propagate lets the caller show a proper error +
+  // Retry state, matching the website's own loadProducts
+  // (yogi/app/page.tsx, which documents the same reasoning). Both existing
+  // callers (HomeScreen, SearchScreen) already wrap this in try/catch.
+  const q = query(
+    collection(db, "products"),
+    orderBy("createdAt", "desc")
+  );
 
-    const q = query(
-      collection(db, "products"),
-      orderBy("createdAt", "desc")
-    );
+  const snapshot = await getDocs(q);
 
-    const snapshot = await getDocs(q);
-
-    const products = snapshot.docs.map((doc) =>
-      normalizeProduct(doc.id, doc.data())
-    );
-
-    return products;
-
-  } catch (error) {
-
-    console.log("Product Loading Error:", error);
-
-    return [];
-
-  }
+  // Admin-blocked products (active === false) must never appear on the
+  // storefront — mirrors the website's isStorefrontVisible()
+  // (yogi/lib/products/legacyDisplay.ts). A missing `active` field is
+  // treated as visible, exactly as the web storefront and the server-side
+  // checkout/order gates do (active === false, never active === true).
+  return snapshot.docs
+    .filter((doc) => (doc.data() as any).active !== false)
+    .map((doc) => normalizeProduct(doc.id, doc.data()));
 }
 
 export async function getProductById(id: string) {
