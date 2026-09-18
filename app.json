@@ -43,6 +43,12 @@
         }
       ],
       "./plugins/withBlockedPermissions"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "81dfbd60-2a67-45c5-b2ba-cb2e11041803"
+      }
+    },
+    "owner": "piyuvisu"
   }
 }
