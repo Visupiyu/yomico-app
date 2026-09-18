@@ -20,6 +20,7 @@ import {
   onSnapshot,
   updateDoc,
   doc,
+  getDoc,
 } from "firebase/firestore";
 
 import {
@@ -31,14 +32,33 @@ import {
   MaterialIcons,
 } from "@expo/vector-icons";
 
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../navigation/types";
+
+type NavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "Notifications"
+>;
 
 export default function NotificationsScreen() {
+
+  const navigation = useNavigation<NavigationProp>();
 
   const [notifications, setNotifications] =
     useState<any[]>([]);
 
   const [loading, setLoading] =
     useState(true);
+
+  const [loadError, setLoadError] =
+    useState(false);
+
+  // Guards against a double-tap firing a second order fetch/navigation
+  // while the first is still in flight, and shows a small inline spinner
+  // on the exact card being opened.
+  const [openingId, setOpeningId] =
+    useState<string | null>(null);
 
 
   useEffect(() => {
@@ -55,6 +75,11 @@ export default function NotificationsScreen() {
     }
 
 
+    // Scoped to THIS signed-in customer's own "customer" notifications only
+    // — mirrors the existing web NotificationBell.tsx's userId+role query.
+    // Firestore's security rules (allow read: isOwnerUid(resource.data.userId))
+    // independently enforce this regardless of what the client queries for,
+    // so a customer can never read another user's, or another role's, feed.
     const notificationsQuery =
   query(
     collection(
@@ -65,6 +90,11 @@ export default function NotificationsScreen() {
       "userId",
       "==",
       user.uid
+    ),
+    where(
+      "role",
+      "==",
+      "customer"
     )
   );
 
@@ -86,9 +116,20 @@ export default function NotificationsScreen() {
               })
             );
 
+          // No orderBy on the query itself (avoids requiring a composite
+          // index — same reasoning as the web NotificationBell.tsx); sorted
+          // newest-first here instead.
+          data.sort(
+            (a: any, b: any) =>
+              (b.createdAt?.seconds || 0) -
+              (a.createdAt?.seconds || 0)
+          );
+
           setNotifications(
             data
           );
+
+          setLoadError(false);
 
           setLoading(false);
 
@@ -99,6 +140,8 @@ export default function NotificationsScreen() {
             "Notification loading error:",
             error
           );
+
+          setLoadError(true);
 
           setLoading(false);
 
@@ -141,6 +184,63 @@ export default function NotificationsScreen() {
   }
 
 
+  // Opens the order this notification refers to, when it carries one
+  // (orderId is only ever set by the Delivery Engine's delivery-lifecycle
+  // notifications — see the backend's lib/deliveryEngine/notifications.ts;
+  // the older order-placed notification carries none, so it stays a plain,
+  // non-navigable list item exactly as it already was). OrderDetailsScreen
+  // takes the FULL order object as its route param (not just an id), so the
+  // order is fetched once here — a single document read, no new deep-link
+  // infrastructure.
+  async function openNotification(
+    item: any
+  ) {
+
+    await markAsRead(item.id);
+
+    if (!item.orderId || openingId) {
+      return;
+    }
+
+    setOpeningId(item.id);
+
+    try {
+
+      const orderSnap =
+        await getDoc(
+          doc(db, "orders", item.orderId)
+        );
+
+      if (!orderSnap.exists()) {
+        return;
+      }
+
+      navigation.navigate(
+        "OrderDetails",
+        {
+          order: {
+            id: orderSnap.id,
+            ...orderSnap.data(),
+          },
+        }
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Notification order open error:",
+        error
+      );
+
+    } finally {
+
+      setOpeningId(null);
+
+    }
+
+  }
+
+
   if (loading) {
 
     return (
@@ -162,6 +262,46 @@ export default function NotificationsScreen() {
             style={styles.loadingText}
           >
             Loading notifications...
+          </Text>
+
+        </View>
+
+      </SafeAreaView>
+
+    );
+
+  }
+
+
+  if (loadError) {
+
+    return (
+
+      <SafeAreaView
+        style={styles.container}
+      >
+
+        <View
+          style={styles.empty}
+        >
+
+          <MaterialIcons
+            name="error-outline"
+            size={48}
+            color="#DC2626"
+          />
+
+          <Text
+            style={styles.emptyTitle}
+          >
+            Couldn't Load Notifications
+          </Text>
+
+          <Text
+            style={styles.emptyText}
+          >
+            Please check your connection
+            and try again.
           </Text>
 
         </View>
@@ -245,8 +385,8 @@ export default function NotificationsScreen() {
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() =>
-              markAsRead(
-                item.id
+              openNotification(
+                item
               )
             }
             style={[
@@ -324,6 +464,29 @@ export default function NotificationsScreen() {
 
             </View>
 
+            {item.orderId ? (
+
+              openingId === item.id ? (
+
+                <ActivityIndicator
+                  size="small"
+                  color="#16A34A"
+                  style={styles.chevron}
+                />
+
+              ) : (
+
+                <MaterialIcons
+                  name="chevron-right"
+                  size={22}
+                  color="#BBBBBB"
+                  style={styles.chevron}
+                />
+
+              )
+
+            ) : null}
+
           </TouchableOpacity>
 
         )}
@@ -399,6 +562,11 @@ const styles =
     content: {
       flex: 1,
       marginLeft: 10,
+    },
+
+    chevron: {
+      alignSelf: "center",
+      marginLeft: 6,
     },
 
     titleRow: {

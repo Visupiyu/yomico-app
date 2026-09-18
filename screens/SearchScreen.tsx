@@ -69,6 +69,32 @@ const SORT_OPTIONS: {
 
 const RATING_OPTIONS = [4, 3, 2, 1];
 
+// Exact top-level category-name search resolution.
+//
+// Typing a category name (e.g. "Grocery", "Men Fashion") must resolve through
+// the authoritative catalog id and match the product's category field — NOT be
+// treated as a product-name/description keyword — mirroring the website's
+// category-name resolution. Ids and the categoryId-vs-subCategoryId `field`
+// distinction are the SAME authoritative values HomeScreen's category list uses
+// (Men/Women Fashion are sub-categories of Fashion, matched via subCategoryId;
+// everything else is a top-level categoryId). No new ids are invented here.
+// Keys are lowercased so the typed query is matched case-insensitively.
+const CATEGORY_SEARCH_RESOLUTION: Record<
+  string,
+  { id: string; field: "categoryId" | "subCategoryId" }
+> = {
+  grocery: { id: "GROCERY", field: "categoryId" },
+  "men fashion": { id: "FASHION_MEN", field: "subCategoryId" },
+  "women fashion": { id: "FASHION_WOMEN", field: "subCategoryId" },
+  "kids fashion": { id: "KIDS_FASHION", field: "categoryId" },
+  beauty: { id: "BEAUTY", field: "categoryId" },
+  electronics: { id: "ELECTRONICS", field: "categoryId" },
+  furniture: { id: "FURNITURE", field: "categoryId" },
+  mobiles: { id: "MOBILES", field: "categoryId" },
+  appliances: { id: "APPLIANCES", field: "categoryId" },
+  books: { id: "BOOKS", field: "categoryId" },
+};
+
 
 export default function SearchScreen() {
 
@@ -174,6 +200,11 @@ export default function SearchScreen() {
     const search =
       searchText.trim().toLowerCase();
 
+    // An exact top-level category name resolves through the authoritative
+    // catalog id (undefined for any ordinary query, e.g. "OnePlus N6x").
+    const categoryMatch =
+      search ? CATEGORY_SEARCH_RESOLUTION[search] : undefined;
+
     const min = minPrice
       ? Number(minPrice)
       : null;
@@ -187,15 +218,30 @@ export default function SearchScreen() {
 
         if (search) {
 
-          const matches =
-            String(product.name || "")
-              .toLowerCase()
-              .includes(search) ||
-            String(product.category || "")
-              .toLowerCase()
-              .includes(search);
+          if (categoryMatch) {
 
-          if (!matches) return false;
+            // Exact category name: match the resolved catalog id against the
+            // product's category field — never product-name/description text.
+            if (
+              String(product[categoryMatch.field] || "") !==
+              categoryMatch.id
+            ) {
+              return false;
+            }
+
+          } else {
+
+            const matches =
+              String(product.name || "")
+                .toLowerCase()
+                .includes(search) ||
+              String(product.category || "")
+                .toLowerCase()
+                .includes(search);
+
+            if (!matches) return false;
+
+          }
 
         }
 

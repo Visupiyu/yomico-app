@@ -81,6 +81,12 @@ export default function HomeScreen() {
 
   const [recentlyViewedProducts, setRecentlyViewedProducts] = useState<any[]>([]);
 
+  // Customer Notifications V1 — a best-effort unread count for the header
+  // bell. A single query reload on focus (not a live listener) is enough:
+  // the badge naturally refreshes whenever the customer returns to Home,
+  // including right after reading notifications on the Notifications screen.
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+
   // Home stays mounted while switching tabs, so a mount-only load
   // would never reflect a product viewed elsewhere (Recently Viewed)
   // or a default address changed on the Address screen — both would
@@ -91,8 +97,33 @@ export default function HomeScreen() {
       loadProducts();
       loadDefaultAddress();
       loadRecentlyViewed();
+      loadUnreadNotificationCount();
     }, [])
   );
+
+  async function loadUnreadNotificationCount() {
+    const user = auth.currentUser;
+
+    if (!user) {
+      setUnreadNotifCount(0);
+      return;
+    }
+
+    try {
+      const q = query(
+        collection(db, "notifications"),
+        where("userId", "==", user.uid),
+        where("role", "==", "customer"),
+        where("read", "==", false)
+      );
+
+      const snapshot = await getDocs(q);
+
+      setUnreadNotifCount(snapshot.size);
+    } catch (error) {
+      console.log("Unread notification count error:", error);
+    }
+  }
 
   async function loadRecentlyViewed() {
     const data = await getRecentlyViewed(8);
@@ -345,6 +376,21 @@ export default function HomeScreen() {
               India's Multi-Vendor Marketplace
             </Text>
           </View>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.notifBell}
+            onPress={() => navigation.navigate("Notifications")}
+          >
+            <MaterialIcons name="notifications-none" size={26} color="#16A34A" />
+            {unreadNotifCount > 0 ? (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>
+                  {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                </Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
         </View>
 
         {/* SEARCH */}
@@ -647,6 +693,9 @@ const styles = StyleSheet.create({
 
   // Header
   topHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 10,
@@ -667,6 +716,34 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#496454",
     marginTop: 2,
+  },
+
+  notifBell: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notifBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    backgroundColor: "#DC2626",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: "#E9FFF1",
+  },
+  notifBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "800",
   },
 
   // Search

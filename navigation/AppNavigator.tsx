@@ -71,6 +71,12 @@ import OrdersScreen
 import OrderDetailsScreen
   from "../screens/OrderDetailsScreen";
 
+import RequestReturnScreen
+  from "../screens/RequestReturnScreen";
+
+import ReturnsScreen
+  from "../screens/ReturnsScreen";
+
 import EditProfileScreen
   from "../screens/EditProfileScreen";
 
@@ -368,6 +374,16 @@ export default function AppNavigator() {
   <Stack.Screen
     name="OrderDetails"
     component={OrderDetailsScreen}
+  />
+
+  <Stack.Screen
+    name="RequestReturn"
+    component={RequestReturnScreen}
+  />
+
+  <Stack.Screen
+    name="Returns"
+    component={ReturnsScreen}
   />
 
   <Stack.Screen

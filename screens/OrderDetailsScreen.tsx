@@ -1,4 +1,5 @@
 import React, {
+  useEffect,
   useState,
 } from "react";
 
@@ -12,6 +13,7 @@ import {
   Alert,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 
 import { RouteProp, useRoute, useNavigation, } from "@react-navigation/native";
@@ -22,6 +24,7 @@ import type {
 import { RootStackParamList } from "../navigation/AppNavigator";
 import {
   doc,
+  getDoc,
   updateDoc,
   addDoc,
   collection,
@@ -29,8 +32,6 @@ import {
   getDocs,
   query,
   where,
-  runTransaction,
-  increment,
 } from "firebase/firestore";
 
 import {
@@ -40,7 +41,7 @@ import {
 } from "../firebase/firebase";
 import { addToCart } from "../services/cartService";
 import { getProductById } from "../services/productService";
-import { createNotification } from "../services/notificationService";
+import { API_BASE_URL } from "../services/apiConfig";
 import { getStatusColors } from "../utils/orderStatus";
 import {
   formatPaymentMethod,
@@ -53,6 +54,12 @@ import {
   uploadBytes,
   getDownloadURL,
 } from "firebase/storage";
+import {
+  getOrderShipments,
+  DeliveryTrackingError,
+  type CustomerShipment,
+} from "../services/deliveryTrackingService";
+import ShipmentTrackingCard from "../components/ShipmentTrackingCard";
 type OrderDetailsRouteProp =
   RouteProp<
     RootStackParamList,
@@ -374,6 +381,55 @@ const [cancelling, setCancelling] =
 const [reordering, setReordering] =
   useState(false);
 
+// Customer Delivery Tracking V1 — the authoritative Delivery Engine
+// shipments for this order (GET /api/delivery/order/[orderId]/shipments).
+// An empty array (never treated as an error) means no delivery job has been
+// materialized for this order yet — the existing legacy order.status
+// tracker below is preserved for exactly that case.
+const [shipments, setShipments] =
+  useState<CustomerShipment[]>([]);
+
+const [trackingLoading, setTrackingLoading] =
+  useState(true);
+
+const [trackingError, setTrackingError] =
+  useState<string | null>(null);
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadTracking() {
+    setTrackingLoading(true);
+    setTrackingError(null);
+
+    try {
+      const data = await getOrderShipments(order.id);
+      if (!cancelled) {
+        setShipments(data.shipments);
+      }
+    } catch (error) {
+      console.log("Delivery tracking load error:", error);
+      if (!cancelled) {
+        setTrackingError(
+          error instanceof DeliveryTrackingError
+            ? error.message
+            : "Could not load delivery tracking."
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setTrackingLoading(false);
+      }
+    }
+  }
+
+  void loadTracking();
+
+  return () => {
+    cancelled = true;
+  };
+}, [order.id]);
+
 
 async function pickReviewPhoto() {
 
@@ -453,11 +509,8 @@ function removeReviewPhoto(index: number) {
   }
 async function cancelOrder() {
 
-  // The stock-restore transaction below already no-ops safely on a
-  // second run (it checks status === "Cancelled" and returns), but
-  // nothing stopped a double-tap from running the whole function
-  // twice regardless — each successful call sends its own "Order
-  // Cancelled" notification and shows its own success alert.
+  // Guards a double-tap from firing the request twice while the first is
+  // still in flight.
   if (cancelling) {
     return;
   }
@@ -466,109 +519,86 @@ async function cancelOrder() {
 
     setCancelling(true);
 
-    const updatedPaymentStatus =
-      isPayOnDelivery(order.paymentMethod)
-        ? "Pending"
-        : order.paymentStatus;
+    // Payment Lifecycle V1 — cancellation is server-authoritative
+    // (yogi-mart-next's app/api/cancel-order), the SAME single route the
+    // website's own order pages already call. It re-reads the order,
+    // restores stock, reverses reward points, releases the coupon claim,
+    // records a refund OBLIGATION for a captured online payment
+    // (refundStatus "Required" — never fabricates that money has actually
+    // moved), and halts any in-flight Delivery Engine job for this order.
+    // This client sends only the orderId — amount, payment state and every
+    // other financial field are derived server-side, never trusted from here.
+    const user = auth.currentUser;
 
-    /*
-     * Cancelling must give back the stock/sales that checkout
-     * reserved for this order — otherwise a cancelled order leaves
-     * the product permanently oversold-short. Mirrors the
-     * reserve/rollback transaction in CheckoutScreen. Runs as one
-     * transaction with the order-status update so a double-tap or a
-     * second device can't restore the same stock twice.
-     */
+    if (!user) {
+      Alert.alert(
+        "Login Required",
+        "Please sign in again before cancelling this order."
+      );
+      return;
+    }
 
-    await runTransaction(
-      db,
-      async (transaction) => {
-
-        const orderRef =
-          doc(db, "orders", order.id);
-
-        const orderSnap =
-          await transaction.get(orderRef);
-
-        if (
-          !orderSnap.exists() ||
-          orderSnap.data().status === "Cancelled"
-        ) {
-          return;
-        }
-
-        const items =
-          (order.items || []) as any[];
-
-        const productRefs =
-          items.map((item) =>
-            doc(db, "products", item.productId || item.id)
-          );
-
-        // Firestore transactions require every get() before any
-        // write, so the product docs are fetched here (a deleted
-        // product must not block the cancellation itself).
-        const productSnaps =
-          await Promise.all(
-            productRefs.map((productRef) =>
-              transaction.get(productRef)
-            )
-          );
-
-        for (
-          let i = 0;
-          i < items.length;
-          i++
-        ) {
-
-          const item = items[i];
-
-          if (
-            !(item.productId || item.id) ||
-            !productSnaps[i].exists()
-          ) {
-            continue;
-          }
-
-          transaction.update(
-            productRefs[i],
-            {
-              stock: increment(Number(item.quantity) || 0),
-              sales: increment(-(Number(item.quantity) || 0)),
-            }
-          );
-
-        }
-
-        transaction.update(orderRef, {
-          status: "Cancelled",
-          paymentStatus: updatedPaymentStatus,
-        });
-
-      }
-    );
-
-    setOrder({
-      ...order,
-      status: "Cancelled",
-      paymentStatus: updatedPaymentStatus,
-    });
+    let idToken: string;
 
     try {
-
-      await createNotification({
-        userId: auth.currentUser?.uid || order.userId,
-        title: "Order Cancelled",
-        message: "Your order has been cancelled.",
-      });
-
-    } catch (notificationError) {
-
-      console.log(
-        "Cancel notification error:",
-        notificationError
+      idToken = await user.getIdToken();
+    } catch (tokenError) {
+      console.log("Cancel order: getIdToken() failed:", tokenError);
+      Alert.alert(
+        "Session Error",
+        "Couldn't verify your login session. Please log out and log back in, then try again."
       );
+      return;
+    }
 
+    let response: Response;
+
+    try {
+      response = await fetch(`${API_BASE_URL}/api/cancel-order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+    } catch (networkError) {
+      console.log("Cancel order: fetch() failed:", networkError);
+      Alert.alert(
+        "Error",
+        "Unable to connect. Check your internet connection and try again."
+      );
+      return;
+    }
+
+    let data: any = {};
+
+    try {
+      data = await response.json();
+    } catch {
+      // non-JSON response — data stays {}
+    }
+
+    if (!response.ok) {
+      Alert.alert(
+        "Error",
+        typeof data?.error === "string" ? data.error : "Unable to cancel the order."
+      );
+      return;
+    }
+
+    // Reload the authoritative order doc rather than guessing its new
+    // fields locally (e.g. refundStatus/refundAmountDue may now be set).
+    try {
+      const freshSnap = await getDoc(doc(db, "orders", order.id));
+      if (freshSnap.exists()) {
+        setOrder({ id: freshSnap.id, ...freshSnap.data() });
+      } else {
+        setOrder({ ...order, status: "Cancelled" });
+      }
+    } catch (reloadError) {
+      console.log("Cancel order: reload failed:", reloadError);
+      setOrder({ ...order, status: "Cancelled" });
     }
 
     Alert.alert(
@@ -702,7 +732,39 @@ async function cancelOrder() {
 
     </View>
 
+  ) : trackingLoading ? (
+
+    <View style={styles.trackingLoading}>
+      <ActivityIndicator size="small" color="#16A34A" />
+      <Text style={styles.trackingLoadingText}>
+        Loading delivery tracking…
+      </Text>
+    </View>
+
+  ) : shipments.length > 0 ? (
+
+    // Customer Delivery Tracking V1 — one authoritative Delivery Engine
+    // shipment per seller in this order. Replaces the generic order-level
+    // tracker below (which stays exactly as it was for a historical/
+    // pre-shipment order with no delivery job yet — shipments: []).
+    <View>
+      {shipments.map((shipment) => (
+        <ShipmentTrackingCard
+          key={shipment.shipmentNumber}
+          shipment={shipment}
+        />
+      ))}
+    </View>
+
   ) : (
+
+  <>
+
+  {trackingError ? (
+    <Text style={styles.trackingErrorNote}>
+      Detailed delivery tracking is unavailable right now. Showing your order status instead.
+    </Text>
+  ) : null}
 
   <View style={styles.trackingRow}>
 
@@ -849,11 +911,46 @@ async function cancelOrder() {
 
   </View>
 
+  </>
+
   )
     );
   })()}
 
 </View>
+
+{/* REFUND STATUS — mirrors the website's own wording (app/orders/page.tsx)
+    exactly, so a customer sees the identical truthful state on both
+    surfaces. Renders nothing for the normal (non-refund-owed) case; never
+    claims money has moved until an admin has actually recorded it. */}
+{order.refundStatus === "Required" && (
+  <View style={styles.refundBanner}>
+    <Text style={styles.refundBannerTitlePending}>Refund pending</Text>
+    <Text style={styles.refundBannerText}>
+      A refund of ₹{Number(order.refundAmountDue || 0).toLocaleString("en-IN")} is being
+      arranged for this cancelled order. It has not been sent yet.
+    </Text>
+  </View>
+)}
+{order.refundStatus === "Processing" && (
+  <View style={[styles.refundBanner, styles.refundBannerProcessing]}>
+    <Text style={styles.refundBannerTitleProcessing}>Refund in progress</Text>
+    <Text style={styles.refundBannerText}>
+      Your refund of ₹{Number(order.refundAmountDue || 0).toLocaleString("en-IN")} has been
+      initiated. It may take a short while to be completed.
+    </Text>
+  </View>
+)}
+{order.refundStatus === "Refunded" && (
+  <View style={[styles.refundBanner, styles.refundBannerRefunded]}>
+    <Text style={styles.refundBannerTitleRefunded}>Refunded</Text>
+    <Text style={styles.refundBannerText}>
+      ₹{Number(order.refundedAmount || 0).toLocaleString("en-IN")} has been refunded
+      {order.refundTransactionId ? ` · Ref: ${order.refundTransactionId}` : ""}
+    </Text>
+  </View>
+)}
+
 {order.status === "Pending" && (
 
   <TouchableOpacity
@@ -908,6 +1005,36 @@ async function cancelOrder() {
     style={styles.supportButtonText}
   >
     Need Help With This Order?
+  </Text>
+
+</TouchableOpacity>
+<TouchableOpacity
+  style={styles.supportButton}
+  activeOpacity={0.8}
+  onPress={() =>
+    navigation.navigate("RequestReturn", { order })
+  }
+>
+
+  <Text
+    style={styles.supportButtonText}
+  >
+    Return or Replace an Item
+  </Text>
+
+</TouchableOpacity>
+<TouchableOpacity
+  style={styles.supportButton}
+  activeOpacity={0.8}
+  onPress={() =>
+    navigation.navigate("Returns")
+  }
+>
+
+  <Text
+    style={styles.supportButtonText}
+  >
+    My Returns &amp; Refunds
   </Text>
 
 </TouchableOpacity>
@@ -1762,6 +1889,27 @@ const styles =
       fontWeight: "800",
       color: "#16A34A",
     },
+trackingLoading: {
+  flexDirection: "row",
+  alignItems: "center",
+  paddingVertical: 10,
+},
+
+trackingLoadingText: {
+  fontSize: 12.5,
+  color: "#666666",
+  marginLeft: 8,
+},
+
+trackingErrorNote: {
+  fontSize: 11.5,
+  color: "#A66A00",
+  backgroundColor: "#FFF4D6",
+  borderRadius: 8,
+  padding: 8,
+  marginBottom: 10,
+},
+
 trackingRow: {
   position: "relative",
   paddingTop: 5,
@@ -1812,6 +1960,45 @@ cancelledBannerText: {
   fontSize: 13,
   fontWeight: "700",
   color: "#DC2626",
+},
+
+refundBanner: {
+  backgroundColor: "#FFFBEB",
+  borderWidth: 1,
+  borderColor: "#FDE68A",
+  borderRadius: 10,
+  marginHorizontal: 14,
+  marginTop: 7,
+  padding: 12,
+},
+refundBannerProcessing: {
+  backgroundColor: "#FFF7ED",
+  borderColor: "#FED7AA",
+},
+refundBannerRefunded: {
+  backgroundColor: "#F0FDF4",
+  borderColor: "#BBF7D0",
+},
+refundBannerTitlePending: {
+  fontSize: 13,
+  fontWeight: "800",
+  color: "#B45309",
+},
+refundBannerTitleProcessing: {
+  fontSize: 13,
+  fontWeight: "800",
+  color: "#C2410C",
+},
+refundBannerTitleRefunded: {
+  fontSize: 13,
+  fontWeight: "800",
+  color: "#16A34A",
+},
+refundBannerText: {
+  fontSize: 12,
+  color: "#555555",
+  marginTop: 4,
+  lineHeight: 17,
 },
 
 trackingCheck: {

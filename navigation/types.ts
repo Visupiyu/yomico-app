@@ -39,6 +39,18 @@ export type RootStackParamList = {
     order: any;
   };
 
+  // Per-item Return / Replace request creation for a delivered order. The full
+  // order object is passed (same shape OrderDetails receives); an optional
+  // parentIndex preselects a specific line.
+  RequestReturn: {
+    order: any;
+    parentIndex?: number;
+  };
+
+  // The customer's Returns & Refunds list, including the pickup-slot
+  // confirm / suggest-another-time step.
+  Returns: undefined;
+
   EditProfile: undefined;
 
   Wishlist: undefined;
