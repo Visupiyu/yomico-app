@@ -12,6 +12,7 @@ import {
   Alert,
   TouchableOpacity,
   TextInput,
+  Linking,
 } from "react-native";
 
 import { RouteProp, useRoute, useNavigation, } from "@react-navigation/native";
@@ -50,6 +51,7 @@ import {
   uploadBytes,
   getDownloadURL,
 } from "firebase/storage";
+import { mapsSearchUrl } from "../utils/maps";
 type OrderDetailsRouteProp =
   RouteProp<
     RootStackParamList,
@@ -421,6 +423,25 @@ async function cancelOrder() {
 
   }
 
+}
+
+// Customer delivery navigation — plain Google Maps search link built from
+// the same order.address already shown above it. No geocoding, no stored
+// coordinates, no map SDK: Linking.openURL() just hands off to whatever the
+// device already uses for maps (browser or an installed Maps app).
+async function openDeliveryMaps(address: string | null | undefined) {
+  const url = mapsSearchUrl(address);
+  if (!url) return;
+
+  try {
+    await Linking.openURL(url);
+  } catch (error) {
+    console.log("Open delivery maps error:", error);
+    Alert.alert(
+      "Error",
+      "Unable to open Maps. Please try again."
+    );
+  }
 }
 
   return (
@@ -845,6 +866,18 @@ async function cancelOrder() {
           >
             {order.address}
           </Text>
+
+          {!!order.address?.trim() && (
+            <TouchableOpacity
+              onPress={() => openDeliveryMaps(order.address)}
+              activeOpacity={0.7}
+              style={styles.mapsLink}
+            >
+              <Text style={styles.mapsLinkText}>
+                View on Maps ↗
+              </Text>
+            </TouchableOpacity>
+          )}
 
 
           <Text
@@ -1456,6 +1489,18 @@ const styles =
       color: "#555555",
       marginTop: 4,
       lineHeight: 17,
+    },
+
+
+    mapsLink: {
+      marginTop: 6,
+      alignSelf: "flex-start",
+    },
+
+    mapsLinkText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#16A34A",
     },
 
 
