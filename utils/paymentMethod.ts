@@ -11,12 +11,23 @@
 
 export const PAY_ON_DELIVERY_METHOD = "PAY_ON_DELIVERY_UPI";
 
+// Razorpay (UPI, Cards & Netbanking), verified server-side before any order
+// is created — see app/api/mobile/create-payment-order and
+// app/api/mobile/finalize-payment (Visupiyu/yogi). Same literal value the web
+// checkout's ONLINE method already uses, so both platforms write the same
+// paymentMethod onto an order.
+export const ONLINE_METHOD = "ONLINE";
+
 const POD_METHOD_VALUES = ["COD", "UPI", "PAY_ON_DELIVERY_UPI"];
 
 export function formatPaymentMethod(method?: string) {
 
   if (!method || POD_METHOD_VALUES.includes(method)) {
     return "Pay on Delivery (UPI Only)";
+  }
+
+  if (method === ONLINE_METHOD) {
+    return "Pay Online";
   }
 
   return method;

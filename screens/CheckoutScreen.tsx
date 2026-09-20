@@ -42,8 +42,11 @@ import {
 
 import {
   PAY_ON_DELIVERY_METHOD,
+  ONLINE_METHOD,
   formatPaymentMethod,
 } from "../utils/paymentMethod";
+
+import RazorpayCheckout from "react-native-razorpay";
 
 import {
   getShippingSettings,
@@ -103,13 +106,11 @@ export default function CheckoutScreen() {
   const [idempotencyKey] =
     useState(() => generateIdempotencyKey());
 
-  /*
-    Only one payment method exists today: UPI collected at
-    delivery. Cash is not accepted. Kept as a named constant
-    (not a toggle) so a future prepaid/online method can be
-    added here without another checkout redesign.
-  */
-  const paymentMethod = PAY_ON_DELIVERY_METHOD;
+  // Customer-selectable: Pay on Delivery (UPI Only) or Pay Online (Razorpay).
+  // Defaults to Pay on Delivery, preserving the previous only-option behavior
+  // for anyone who never touches the Payment Method section.
+  const [paymentMethod, setPaymentMethod] =
+    useState(PAY_ON_DELIVERY_METHOD);
 
 const [gstAmount, setGstAmount] =
   useState(0);
@@ -554,6 +555,11 @@ setCartItemsTotalMRP(
 
       }
 
+      if (paymentMethod === ONLINE_METHOD) {
+        await payOnline(idToken, flattenedAddress);
+        return;
+      }
+
       let response: Response;
 
       try {
@@ -740,6 +746,263 @@ setCartItemsTotalMRP(
     }
 
   }
+
+
+  // Pay Online (Razorpay): UPI, Cards & Netbanking. Called from placeOrder()
+  // after delivery-detail validation and login already passed and the ID
+  // token has already been fetched — this only handles the payment itself.
+  //
+  // On a successful Razorpay result this does NOT treat the order as placed:
+  // the three identifiers Razorpay returns go to
+  // app/api/mobile/finalize-payment, which independently re-verifies the
+  // signature and the payment with Razorpay itself (via
+  // lib/razorpayVerify.ts, shared with the web checkout and the webhook)
+  // before any YOMICO order is written. A failed or cancelled Razorpay sheet
+  // (the .catch below) creates nothing and leaves the cart untouched, so the
+  // customer can simply try again.
+  //
+  // RazorpayCheckout.open() itself is Promise-based (react-native-razorpay
+  // v3) and removes its own internal event listeners on both the success and
+  // the failure path — see node_modules/react-native-razorpay/
+  // RazorpayCheckout.js's removeSubscriptions() — so there is nothing further
+  // to clean up here.
+  async function payOnline(
+    idToken: string,
+    flattenedAddress: string
+  ) {
+
+    let createResponse: Response;
+
+    try {
+
+      console.log(
+        "[Checkout] payOnline: creating Razorpay order..."
+      );
+
+      createResponse = await fetch(
+        `${API_BASE_URL}/api/mobile/create-payment-order`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            customerName: name.trim(),
+            phone: mobile.trim(),
+            address: flattenedAddress,
+            couponCode: appliedCoupon?.code || null,
+          }),
+        }
+      );
+
+    } catch (networkError: any) {
+
+      console.log(
+        "[Checkout] payOnline: create-payment-order fetch FAILED:",
+        networkError?.message,
+        networkError
+      );
+
+      Alert.alert(
+        "Connection Error",
+        "Couldn't reach YOMICO. Please check your internet connection and try again."
+      );
+
+      return;
+
+    }
+
+    const createData =
+      await createResponse.json().catch(() => ({}));
+
+    if (!createResponse.ok) {
+
+      if (createData.error === "Your cart is empty.") {
+
+        Alert.alert(
+          "Cart Empty",
+          "Your cart is empty."
+        );
+
+        navigation.navigate("MainTabs", {
+          screen: "CartTab",
+        });
+
+        return;
+
+      }
+
+      if (createResponse.status === 409) {
+
+        Alert.alert(
+          "Stock Unavailable",
+          createData.error ||
+            "One or more items in your cart are no longer available in the requested quantity."
+        );
+
+        return;
+
+      }
+
+      if (
+        createResponse.status === 400 &&
+        createData.error
+      ) {
+
+        Alert.alert(
+          "Order Failed",
+          createData.error
+        );
+
+        return;
+
+      }
+
+      Alert.alert(
+        "Payment Failed",
+        createData.error || "Couldn't start payment. Please try again."
+      );
+
+      return;
+
+    }
+
+    const { razorpayOrderId, amount, currency, keyId } = createData;
+
+    let paymentResult: {
+      razorpay_payment_id: string;
+      razorpay_order_id: string;
+      razorpay_signature: string;
+    };
+
+    try {
+
+      paymentResult = await RazorpayCheckout.open({
+        key: keyId,
+        amount,
+        currency,
+        order_id: razorpayOrderId,
+        name: "YOMICO",
+        description: "Order payment",
+        prefill: {
+          name: name.trim(),
+          contact: mobile.trim(),
+          email: auth.currentUser?.email || undefined,
+        },
+        theme: {
+          color: "#16A34A",
+        },
+      });
+
+    } catch (paymentError: any) {
+
+      // Razorpay rejects this promise on both a genuine failure AND a plain
+      // customer cancellation — nothing has been charged either way, and no
+      // YOMICO order exists, so this is always safe to just let them retry.
+      console.log(
+        "[Checkout] payOnline: Razorpay checkout did not complete:",
+        paymentError?.description ||
+          paymentError?.error?.description,
+        paymentError
+      );
+
+      Alert.alert(
+        "Payment Not Completed",
+        "Your payment was not completed and nothing has been charged. You can try again."
+      );
+
+      return;
+
+    }
+
+    let finalizeResponse: Response;
+
+    try {
+
+      finalizeResponse = await fetch(
+        `${API_BASE_URL}/api/mobile/finalize-payment`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            razorpay_order_id: paymentResult.razorpay_order_id,
+            razorpay_payment_id: paymentResult.razorpay_payment_id,
+            razorpay_signature: paymentResult.razorpay_signature,
+          }),
+        }
+      );
+
+    } catch (networkError: any) {
+
+      console.log(
+        "[Checkout] payOnline: finalize-payment fetch FAILED:",
+        networkError?.message,
+        networkError
+      );
+
+      Alert.alert(
+        "Confirming Your Payment",
+        "Your payment was received but we couldn't reach YOMICO to confirm it. Please check My Orders in a moment — do not pay again."
+      );
+
+      return;
+
+    }
+
+    const finalizeData =
+      await finalizeResponse.json().catch(() => ({}));
+
+    if (!finalizeResponse.ok || finalizeData.error) {
+
+      Alert.alert(
+        "Confirming Your Payment",
+        finalizeData.error ||
+          "Your payment was received. Please check My Orders in a moment — do not pay again."
+      );
+
+      return;
+
+    }
+
+    const total = Number(finalizeData.total || 0);
+
+    try {
+
+      await createNotification({
+        userId: auth.currentUser!.uid,
+        title: "Order Placed",
+        message: `Your order for ₹${total.toFixed(0)} has been placed successfully.`,
+      });
+
+    } catch (notificationError) {
+
+      console.log(
+        "Order notification error:",
+        notificationError
+      );
+
+    }
+
+    Alert.alert(
+      "🎉 Your Order is Confirmed!",
+      `Payment: Pay Online (Razorpay)\nAmount Paid: ₹${total.toFixed(0)}`,
+      [
+        {
+          text: "OK",
+          onPress: () =>
+            navigation.replace("MainTabs", {
+              screen: "HomeTab",
+            }),
+        },
+      ]
+    );
+
+  }
+
 
   // Same formula and en-IN formatting the website's checkout/order-creation
   // routes already use (today + 5 calendar days) — see yogi/app/checkout
@@ -1038,13 +1301,27 @@ setCartItemsTotalMRP(
           </Text>
 
 
-          <View
-            style={styles.codRow}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[
+              styles.paymentOptionRow,
+              paymentMethod === PAY_ON_DELIVERY_METHOD &&
+                styles.paymentOptionRowSelected,
+            ]}
+            onPress={() => setPaymentMethod(PAY_ON_DELIVERY_METHOD)}
           >
 
             <View
-              style={styles.radio}
-            />
+              style={[
+                styles.radioOuter,
+                paymentMethod === PAY_ON_DELIVERY_METHOD &&
+                  styles.radioOuterSelected,
+              ]}
+            >
+              {paymentMethod === PAY_ON_DELIVERY_METHOD && (
+                <View style={styles.radioInner} />
+              )}
+            </View>
 
 
             <View
@@ -1066,7 +1343,53 @@ setCartItemsTotalMRP(
 
             </View>
 
-          </View>
+          </TouchableOpacity>
+
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[
+              styles.paymentOptionRow,
+              styles.paymentOptionRowSpacing,
+              paymentMethod === ONLINE_METHOD &&
+                styles.paymentOptionRowSelected,
+            ]}
+            onPress={() => setPaymentMethod(ONLINE_METHOD)}
+          >
+
+            <View
+              style={[
+                styles.radioOuter,
+                paymentMethod === ONLINE_METHOD &&
+                  styles.radioOuterSelected,
+              ]}
+            >
+              {paymentMethod === ONLINE_METHOD && (
+                <View style={styles.radioInner} />
+              )}
+            </View>
+
+
+            <View
+              style={styles.codTextContainer}
+            >
+
+              <Text
+                style={styles.codTitle}
+              >
+                Pay Online
+              </Text>
+
+
+              <Text
+                style={styles.codSubtitle}
+              >
+                UPI, Cards &amp; Netbanking via Razorpay
+              </Text>
+
+            </View>
+
+          </TouchableOpacity>
 
         </View>
 
@@ -1733,24 +2056,50 @@ const styles =
     },
 
 
-    codRow: {
+    paymentOptionRow: {
       flexDirection: "row",
       alignItems: "center",
       borderWidth: 1,
-      borderColor: "#16A34A",
+      borderColor: "#DDDDDD",
       borderRadius: 9,
       padding: 10,
+      backgroundColor: "#FFFFFF",
+    },
+
+
+    paymentOptionRowSelected: {
+      borderColor: "#16A34A",
       backgroundColor: "#F3FFF6",
     },
 
 
-    radio: {
+    paymentOptionRowSpacing: {
+      marginTop: 10,
+    },
+
+
+    radioOuter: {
       width: 18,
       height: 18,
       borderRadius: 9,
+      borderWidth: 2,
+      borderColor: "#CCCCCC",
+      backgroundColor: "#FFFFFF",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+
+    radioOuterSelected: {
+      borderColor: "#16A34A",
+    },
+
+
+    radioInner: {
+      width: 9,
+      height: 9,
+      borderRadius: 5,
       backgroundColor: "#16A34A",
-      borderWidth: 4,
-      borderColor: "#FFFFFF",
     },
 
 
