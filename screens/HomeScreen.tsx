@@ -40,6 +40,26 @@ import { auth, db } from "../firebase/firebase";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "MainTabs">;
 
+// OFFER CARDS — mirror of the website Home OfferCards (components/home/
+// OfferCards.tsx): same titles/subtitles/badges, pointing at real catalog
+// categories. No image assets on mobile — rendered as color cards.
+const OFFERS: { title: string; subtitle: string; badge: string; categoryId: string; categoryName: string }[] = [
+  { title: "Latest Smartphones", subtitle: "Up to 40% OFF", badge: "\ud83d\udd25 HOT DEAL", categoryId: "MOBILES", categoryName: "Mobiles" },
+  { title: "Smart Home Appliances", subtitle: "Modern Living Starts Here", badge: "\u26a1 LIMITED OFFER", categoryId: "APPLIANCES", categoryName: "Appliances" },
+];
+
+// FEATURED CATEGORIES — mirror of the website Home FeaturedCategories
+// (components/FeaturedCategories.tsx). id/field use the app's own verified
+// catalog ids so Search navigation matches the category strip exactly.
+const FEATURED_CATEGORIES: { name: string; icon: string; id: string; field: "categoryId" | "subCategoryId" }[] = [
+  { name: "Men Fashion", icon: "\ud83d\udc54", id: "FASHION_MEN", field: "subCategoryId" },
+  { name: "Women Fashion", icon: "\ud83d\udc57", id: "FASHION_WOMEN", field: "subCategoryId" },
+  { name: "Electronics", icon: "\ud83d\udd0c", id: "ELECTRONICS", field: "categoryId" },
+  { name: "Grocery", icon: "\ud83d\uded2", id: "GROCERY", field: "categoryId" },
+  { name: "Kids Fashion", icon: "\ud83d\udc76", id: "KIDS_FASHION", field: "categoryId" },
+  { name: "Beauty", icon: "\ud83d\udc84", id: "BEAUTY", field: "categoryId" },
+];
+
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const heroRef = useRef<ScrollView>(null);
@@ -284,6 +304,12 @@ export default function HomeScreen() {
     .sort((a, b) => createdMillis(b) - createdMillis(a))
     .slice(0, 12);
 
+  // Collection Strip — curated Electronics shelf (mirrors the website Home
+  // CollectionStrip "Electronics Collection"); real products from this load.
+  const electronicsCollection = products
+    .filter((p) => p.categoryId === "ELECTRONICS")
+    .slice(0, 12);
+
   // The 8 per-category product shelves the website Home renders
   // (yogi/app/page.tsx CATEGORY_ROWS), in the same order. `field` mirrors the
   // website's top-level-vs-subcategory distinction — Men/Women Fashion are
@@ -400,9 +426,8 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* HEADER — search + notifications. Brand title/tagline removed per the
-            mobile header direction; the bell stays here (still the only entry to
-            Notifications) until Notifications moves to the bottom tab bar. */}
+        {/* HEADER — search only. Brand title/tagline and the notification bell
+            are removed; notifications now live in the bottom tab bar. */}
         <View style={styles.headerRow}>
           <TouchableOpacity
             activeOpacity={0.85}
@@ -413,40 +438,7 @@ export default function HomeScreen() {
             <Text style={styles.searchPlaceholder}>Search on YOMICO...</Text>
             <MaterialIcons name="mic-none" size={22} color="#263238" />
           </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={styles.notifBell}
-            onPress={() => navigation.navigate("Notifications")}
-          >
-            <MaterialIcons name="notifications-none" size={26} color="#16A34A" />
-            {unreadNotifCount > 0 ? (
-              <View style={styles.notifBadge}>
-                <Text style={styles.notifBadgeText}>
-                  {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
-                </Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
         </View>
-
-        {/* DELIVERY LOCATION */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={styles.deliveryBar}
-          onPress={() => navigation.navigate("Address")}
-        >
-          <MaterialIcons name="location-on" size={21} color="#16A34A" />
-          <View style={styles.deliveryContent}>
-            <Text style={styles.deliveryLabel}>Deliver to</Text>
-            <Text style={styles.deliveryAddress} numberOfLines={1}>
-              {defaultAddress
-                ? `${defaultAddress.address}, ${defaultAddress.city} ${defaultAddress.pincode}`
-                : "Select your delivery location"}
-            </Text>
-          </View>
-          <MaterialIcons name="keyboard-arrow-right" size={22} color="#555" />
-        </TouchableOpacity>
 
         {/* CATEGORIES */}
         <View style={styles.categorySection}>
@@ -489,6 +481,24 @@ export default function HomeScreen() {
             )}
           />
         </View>
+
+        {/* DELIVERY LOCATION */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.deliveryBar}
+          onPress={() => navigation.navigate("Address")}
+        >
+          <MaterialIcons name="location-on" size={21} color="#16A34A" />
+          <View style={styles.deliveryContent}>
+            <Text style={styles.deliveryLabel}>Deliver to</Text>
+            <Text style={styles.deliveryAddress} numberOfLines={1}>
+              {defaultAddress
+                ? `${defaultAddress.address}, ${defaultAddress.city} ${defaultAddress.pincode}`
+                : "Select your delivery location"}
+            </Text>
+          </View>
+          <MaterialIcons name="keyboard-arrow-right" size={22} color="#555" />
+        </TouchableOpacity>
 
         {/* HERO CAROUSEL */}
         <View style={styles.heroCarousel}>
@@ -540,6 +550,40 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* FESTIVE PROMO BANNER — mirrors the website Home festive PromoBanner
+            (Navratri) copy; mobile color banner (no image asset). */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={styles.promoBanner}
+          onPress={() => navigation.navigate("Search")}
+        >
+          <Text style={styles.promoTitle}>Navratri Festive Sale</Text>
+          <Text style={styles.promoSubtitle}>Celebrate. Shop. Save.</Text>
+          <View style={styles.promoCta}>
+            <Text style={styles.promoCtaText}>Shop the sale →</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* OFFER CARDS — mirrors website OfferCards (same titles/subtitles/
+            badges, real category targets); mobile stacked cards, no image. */}
+        <View style={styles.offerWrap}>
+          {OFFERS.map((o) => (
+            <TouchableOpacity
+              key={o.title}
+              activeOpacity={0.9}
+              style={styles.offerCard}
+              onPress={() =>
+                navigation.navigate("Search", { categoryId: o.categoryId, categoryName: o.categoryName })
+              }
+            >
+              <Text style={styles.offerBadge}>{o.badge}</Text>
+              <Text style={styles.offerTitle}>{o.title}</Text>
+              <Text style={styles.offerSubtitle}>{o.subtitle}</Text>
+              <Text style={styles.offerCta}>Shop Now →</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* PRODUCT SECTIONS — all derive from the single products load, so a
             failure/empty is handled once here (error + Retry, or empty),
             never a misleading per-section "No products available". */}
@@ -571,6 +615,32 @@ export default function HomeScreen() {
             {bestDeals.length > 0 &&
               renderSection("🏷️ Best Deals", bestDeals)}
 
+            {/* FEATURED CATEGORIES — mirrors website FeaturedCategories (real
+                catalog targets); mobile 3-column emoji tiles. */}
+            <View style={styles.featCatWrap}>
+              <Text style={styles.featCatHeading}>Featured Categories</Text>
+              <View style={styles.featCatGrid}>
+                {FEATURED_CATEGORIES.map((c) => (
+                  <TouchableOpacity
+                    key={c.name}
+                    activeOpacity={0.85}
+                    style={styles.featCatCard}
+                    onPress={() =>
+                      navigation.navigate("Search", {
+                        ...(c.field === "subCategoryId"
+                          ? { subCategoryId: c.id }
+                          : { categoryId: c.id }),
+                        categoryName: c.name,
+                      })
+                    }
+                  >
+                    <Text style={styles.featCatEmoji}>{c.icon}</Text>
+                    <Text style={styles.featCatName} numberOfLines={1}>{c.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
             {/* BEST SELLERS — ranked by units sold */}
             {renderSection("🏆 Best Sellers", bestSellerProducts)}
 
@@ -592,14 +662,18 @@ export default function HomeScreen() {
               );
             })}
 
+            {/* COLLECTION STRIP — curated Electronics collection (mirrors the
+                website Home CollectionStrip); real products from this load. */}
+            {electronicsCollection.length > 0 &&
+              renderSection("\u26a1 Electronics Collection", electronicsCollection, {
+                categoryId: "ELECTRONICS",
+                categoryName: "Electronics",
+              })}
+
             {/* RECOMMENDED — newest products (mirrors website RecommendedProducts,
                 createdAt-desc). */}
             {recommendedProducts.length > 0 &&
               renderSection("Recommended for You", recommendedProducts)}
-
-            {/* FEATURED — website FeaturedProducts (featured flag, else blend). */}
-            {featuredProducts.length > 0 &&
-              renderSection("Featured Products", featuredProducts)}
           </>
         )}
 
@@ -607,6 +681,11 @@ export default function HomeScreen() {
             shown when the customer actually has recently-viewed items. */}
         {recentlyViewedProducts.length > 0 &&
           renderSection("Recently Viewed", recentlyViewedProducts)}
+
+        {/* FEATURED PRODUCTS — website FeaturedProducts (featured flag, else
+            sales+views blend). Rendered after Recently Viewed per final order. */}
+        {featuredProducts.length > 0 &&
+          renderSection("Featured Products", featuredProducts)}
 
         {/* WHY SHOP YOMICO */}
         <View style={styles.infoSection}>
@@ -730,6 +809,23 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     marginTop: 0,
   },
+  promoBanner: { marginHorizontal: 13, marginTop: 14, borderRadius: 18, paddingVertical: 18, paddingHorizontal: 18, backgroundColor: "#7C3AED" },
+  promoTitle: { color: "#FFFFFF", fontSize: 18, fontWeight: "900" },
+  promoSubtitle: { color: "#EDE9FE", fontSize: 13, marginTop: 3, fontWeight: "600" },
+  promoCta: { marginTop: 12, alignSelf: "flex-start", backgroundColor: "#FFFFFF", paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20 },
+  promoCtaText: { color: "#6D28D9", fontWeight: "800", fontSize: 12.5 },
+  offerWrap: { marginHorizontal: 13, marginTop: 12, gap: 10 },
+  offerCard: { backgroundColor: "#0F172A", borderRadius: 16, padding: 16 },
+  offerBadge: { color: "#FDE047", fontWeight: "800", fontSize: 11.5, marginBottom: 6 },
+  offerTitle: { color: "#FFFFFF", fontSize: 17, fontWeight: "800" },
+  offerSubtitle: { color: "#CBD5E1", fontSize: 12.5, marginTop: 2, fontWeight: "600" },
+  offerCta: { color: "#34D399", fontWeight: "800", fontSize: 13, marginTop: 10 },
+  featCatWrap: { marginTop: 8, paddingHorizontal: 13 },
+  featCatHeading: { fontSize: 16, fontWeight: "800", color: "#1F2D26", marginBottom: 10 },
+  featCatGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 10 },
+  featCatCard: { width: "31%", backgroundColor: "#F1FBF4", borderRadius: 14, borderWidth: 1, borderColor: "#DCEFE3", paddingVertical: 14, alignItems: "center" },
+  featCatEmoji: { fontSize: 24 },
+  featCatName: { fontSize: 11.5, fontWeight: "700", color: "#2F4A3A", marginTop: 6 },
   topHeader: {
     flexDirection: "row",
     alignItems: "center",

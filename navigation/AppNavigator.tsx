@@ -97,6 +97,7 @@ import ChatScreen
 
 import NotificationsScreen
   from "../screens/NotificationsScreen";
+import { useUnreadNotifications } from "../hooks/useUnreadNotifications";
 
 import RecentlyViewedScreen
   from "../screens/RecentlyViewedScreen";
@@ -127,6 +128,7 @@ const Tab =
 function BottomTabs() {
 
   const insets = useSafeAreaInsets();
+  const unreadNotifications = useUnreadNotifications();
 
   return (
 
@@ -235,6 +237,27 @@ function BottomTabs() {
 
       />
 
+
+      {/* =========================
+          NOTIFICATIONS
+      ========================== */}
+
+      <Tab.Screen
+        name="NotificationsTab"
+        component={NotificationsScreen}
+        options={{
+          tabBarLabel: "Notifications",
+          tabBarBadge:
+            unreadNotifications > 0
+              ? unreadNotifications > 9
+                ? "9+"
+                : unreadNotifications
+              : undefined,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="notifications-none" color={color} size={size} />
+          ),
+        }}
+      />
 
       {/* =========================
           CART
