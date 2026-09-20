@@ -45,6 +45,13 @@ import {
 } from "../services/productService";
 import ProductCard from "../components/ProductCard";
 import {
+  variantDimensions,
+  optionsForDimension,
+  isSelectionComplete,
+  resolveVariant,
+  variantAttributes,
+} from "../utils/variantSelection";
+import {
   NativeStackNavigationProp,
 } from "@react-navigation/native-stack";
 
@@ -100,6 +107,48 @@ const stock = Number(product.stock ?? 1);
 const isOutOfStock = product.stock !== undefined && stock <= 0;
 const isLowStock = product.stock !== undefined && stock > 0 && stock < 5;
 
+// Real product variants are one entry PER COMBINATION —
+// { id, attributes: {Size:"M", Color:"Brown"}, stock, price } — not one
+// entry per dimension. Dimensions (Size, Color, Capacity, ...) are derived
+// from whatever attribute keys the seller's own variants actually use, so
+// this works for any category without hardcoding a fixed pair.
+const variantList = Array.isArray(product.variants) ? product.variants : [];
+const dimensions = variantDimensions(variantList);
+const hasVariants = dimensions.length > 0;
+
+// The single variant matching the current choice, or null while the choice
+// is incomplete, impossible, or ambiguous (a duplicate the seller saved).
+const selectedVariant = resolveVariant(variantList, selectedVariants);
+
+// Blocks Add to Cart / Buy Now until every required option is chosen —
+// mirrors the web product page's own addItemToCart() validation exactly.
+// Returns false (and shows the customer why) rather than silently letting
+// an incomplete variant into the cart, which is the bug this replaces: the
+// customer could previously add this product with no selection at all, and
+// only find out at checkout that the server refuses it.
+function validateVariantSelection(): boolean {
+  if (!hasVariants) return true;
+
+  if (!isSelectionComplete(variantList, selectedVariants)) {
+    const missing = dimensions.filter((d) => !selectedVariants[d]);
+    Alert.alert(
+      "Select an option",
+      `Please select ${missing.join(" and ")} before adding this product to your cart.`
+    );
+    return false;
+  }
+
+  if (!selectedVariant) {
+    Alert.alert(
+      "Not available",
+      "That combination isn't available. Please choose another."
+    );
+    return false;
+  }
+
+  return true;
+}
+
   const navigation =
   useNavigation<
     NativeStackNavigationProp<
@@ -124,19 +173,10 @@ useEffect(() => {
   setAverageRating(0);
   setSimilarProducts([]);
 
-  setSelectedVariants(() => {
-    const initial: Record<string, string> = {};
-
-    if (Array.isArray(product.variants)) {
-      product.variants.forEach((variant: any) => {
-        if (variant.options?.length > 0) {
-          initial[variant.label] = variant.options[0];
-        }
-      });
-    }
-
-    return initial;
-  });
+  // Starts empty — the customer must actively choose every dimension this
+  // product varies on, matching the web product page's own behavior. No
+  // dimension is pre-selected.
+  setSelectedVariants({});
 
 saveRecentlyViewed(
     product
@@ -292,11 +332,19 @@ saveRecentlyViewed(
 
     }
 
+    if (!validateVariantSelection()) {
+      return;
+    }
+
     try {
 
       setProcessingCart(true);
 
-      await addToCart({ ...product, selectedVariants });
+      await addToCart({
+        ...product,
+        selectedVariants: hasVariants ? variantAttributes(selectedVariant) : selectedVariants,
+        ...(selectedVariant?.id ? { variantId: selectedVariant.id } : {}),
+      });
 
       navigation.navigate("Checkout");
 
@@ -342,11 +390,19 @@ saveRecentlyViewed(
 
     }
 
+    if (!validateVariantSelection()) {
+      return;
+    }
+
     try {
 
       setProcessingCart(true);
 
-      await addToCart({ ...product, selectedVariants });
+      await addToCart({
+        ...product,
+        selectedVariants: hasVariants ? variantAttributes(selectedVariant) : selectedVariants,
+        ...(selectedVariant?.id ? { variantId: selectedVariant.id } : {}),
+      });
 
       Alert.alert(
         "Success",
@@ -884,61 +940,94 @@ saveRecentlyViewed(
 
           {/* VARIANTS */}
 
-          {Array.isArray(product.variants) &&
-            product.variants.length > 0 && (
+          {hasVariants && (
 
             <View style={styles.variantsSection}>
 
-              {product.variants.map((variant: any) => (
+              {dimensions.map((dimension) => {
 
-                <View
-                  key={variant.label}
-                  style={styles.variantGroup}
-                >
+                const options = optionsForDimension(
+                  variantList,
+                  dimension,
+                  selectedVariants
+                );
 
-                  <Text style={styles.variantLabel}>
-                    {variant.label}: {selectedVariants[variant.label]}
-                  </Text>
+                return (
 
-                  <View style={styles.variantOptionsRow}>
+                  <View
+                    key={dimension}
+                    style={styles.variantGroup}
+                  >
 
-                    {variant.options.map((option: string) => (
+                    <Text style={styles.variantLabel}>
+                      Select {dimension}
+                      {selectedVariants[dimension]
+                        ? `: ${selectedVariants[dimension]}`
+                        : ""}
+                    </Text>
 
-                      <TouchableOpacity
-                        key={option}
-                        style={[
-                          styles.variantOption,
-                          selectedVariants[variant.label] === option &&
-                            styles.variantOptionActive,
-                        ]}
-                        activeOpacity={0.8}
-                        onPress={() =>
-                          setSelectedVariants((current) => ({
-                            ...current,
-                            [variant.label]: option,
-                          }))
-                        }
-                      >
+                    <View style={styles.variantOptionsRow}>
 
-                        <Text
+                      {options.map((option) => (
+
+                        <TouchableOpacity
+                          key={option}
                           style={[
-                            styles.variantOptionText,
-                            selectedVariants[variant.label] === option &&
-                              styles.variantOptionTextActive,
+                            styles.variantOption,
+                            selectedVariants[dimension] === option &&
+                              styles.variantOptionActive,
                           ]}
+                          activeOpacity={0.8}
+                          onPress={() =>
+                            // Choosing a value can invalidate an earlier one
+                            // (picking Black when only Silver comes in 1.5 L
+                            // must drop the 1.5 L) — mirrors the web product
+                            // page's chooseDimension().
+                            setSelectedVariants((current) => {
+                              const next: Record<string, string> = {
+                                ...current,
+                                [dimension]: option,
+                              };
+
+                              for (const other of dimensions) {
+                                if (other === dimension || !next[other]) continue;
+                                if (
+                                  !optionsForDimension(
+                                    variantList,
+                                    other,
+                                    next
+                                  ).includes(next[other])
+                                ) {
+                                  delete next[other];
+                                }
+                              }
+
+                              return next;
+                            })
+                          }
                         >
-                          {option}
-                        </Text>
 
-                      </TouchableOpacity>
+                          <Text
+                            style={[
+                              styles.variantOptionText,
+                              selectedVariants[dimension] === option &&
+                                styles.variantOptionTextActive,
+                            ]}
+                          >
+                            {option}
+                          </Text>
 
-                    ))}
+                        </TouchableOpacity>
+
+                      ))}
+
+                    </View>
 
                   </View>
 
-                </View>
+                );
 
-              ))}
+              })}
 
             </View>
 

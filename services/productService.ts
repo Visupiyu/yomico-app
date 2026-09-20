@@ -21,23 +21,19 @@ import { db } from "../firebase/firebase";
 */
 function normalizeProduct(id: string, data: any) {
 
+  // Web's real variant shape is one entry PER COMBINATION —
+  // { id, attributes: {Size:"M", Color:"Brown"}, stock, price } — read by
+  // utils/variantSelection.ts (a mobile port of the web's own
+  // lib/products/variantSelection.ts). A previous version of this function
+  // only passed variants through when they matched a DIFFERENT,
+  // never-actually-used {label, options[]} shape, which real product docs
+  // never have — so every real variant product silently lost its variants
+  // here (variants: []), ProductDetailsScreen never showed a selector, and
+  // the customer could add an incomplete variant straight into the cart,
+  // only to be rejected at checkout by the server's own stock-bearing-variant
+  // check. Passed through as-is now; utils/variantSelection.ts already
+  // tolerates a missing/malformed attributes map per entry.
   const rawVariants = data.variants;
-
-  /*
-    Web's real variant shape ({id,attributes,stock,price}) is
-    structurally different from what the variant selector UI expects
-    ({label,options[]}). Passing the raw shape through would crash
-    that UI (options.map on undefined), so only pass variants through
-    when they already match the shape it understands.
-  */
-  const hasCompatibleVariantShape =
-    Array.isArray(rawVariants) &&
-    rawVariants.every(
-      (variant: any) =>
-        variant &&
-        typeof variant.label === "string" &&
-        Array.isArray(variant.options)
-    );
 
   return {
     // Spread raw doc data FIRST, then set `id` LAST — some product docs carry
@@ -63,7 +59,7 @@ function normalizeProduct(id: string, data: any) {
     vendorName: data.vendorName || "",
     stock: data.stock,
     category: data.category || data.categoryId || "",
-    variants: hasCompatibleVariantShape ? rawVariants : [],
+    variants: Array.isArray(rawVariants) ? rawVariants : [],
   };
 
 }

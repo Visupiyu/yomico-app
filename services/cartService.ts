@@ -44,14 +44,30 @@ export async function addToCart(product: any) {
       ? product.selectedVariants
       : null;
 
+  // The seller's own id for this exact combination — see
+  // utils/variantSelection.ts. Authoritative for identity when present,
+  // mirroring the web cart's isSameLine(): a line with a variantId is never
+  // merged with one that lacks it, since they may be different variants
+  // that happen to share a colour.
+  const variantId =
+    typeof product.variantId === "string" && product.variantId
+      ? product.variantId
+      : null;
+
   // A product with variants (e.g. size/color) needs its own cart line
   // per variant combo — merging "Size L" into an existing "Size S" line
   // would silently swap out the size the customer already chose.
-  const existingDoc = snapshot.docs.find(
-    (item) =>
+  const existingDoc = snapshot.docs.find((item) => {
+    const stored = (item.data().variantId as string) || "";
+    const wanted = variantId || "";
+
+    if (stored || wanted) return stored === wanted;
+
+    return (
       JSON.stringify(item.data().selectedVariants || null) ===
       JSON.stringify(selectedVariants)
-  );
+    );
+  });
 
   if (existingDoc) {
 
@@ -77,6 +93,7 @@ export async function addToCart(product: any) {
     vendorName: product.vendorName,
     savedForLater: false,
     ...(selectedVariants ? { selectedVariants } : {}),
+    ...(variantId ? { variantId } : {}),
   });
 }
 
