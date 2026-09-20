@@ -22,6 +22,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { getProducts } from "../services/productService";
 import { getRecentlyViewed } from "../services/recentlyViewedService";
 import ProductCard from "../components/ProductCard";
+import HomeFooter from "../components/HomeFooter";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types"
@@ -252,6 +253,37 @@ export default function HomeScreen() {
     return Math.max(explicit, derived) >= 40;
   });
 
+  // Featured — products explicitly flagged featured (website FeaturedProducts:
+  // where("featured","==",true)); falls back to a sales+views blend when none
+  // are flagged so the shelf is never empty on a healthy catalog.
+  const featuredFlagged = products.filter((p) => p.featured === true);
+  const featuredProducts = (
+    featuredFlagged.length > 0
+      ? featuredFlagged
+      : [...products].sort(
+          (a, b) =>
+            ((Number(b.sales) || 0) + (Number(b.views) || 0)) -
+            ((Number(a.sales) || 0) + (Number(a.views) || 0)),
+        )
+  ).slice(0, 12);
+
+  // Recommended — newest products (website RecommendedProducts derives its
+  // shelves from orderBy("createdAt","desc")); a single newest-first shelf is
+  // the faithful, source-free mobile adaptation. createdAt may be a Firestore
+  // Timestamp, ISO string or epoch — normalise to millis.
+  const createdMillis = (p: any): number => {
+    const c = p?.createdAt;
+    if (!c) return 0;
+    if (typeof c === "number") return c;
+    if (typeof c === "string") return Date.parse(c) || 0;
+    if (typeof c.toMillis === "function") return c.toMillis();
+    if (typeof c.seconds === "number") return c.seconds * 1000;
+    return 0;
+  };
+  const recommendedProducts = [...products]
+    .sort((a, b) => createdMillis(b) - createdMillis(a))
+    .slice(0, 12);
+
   // The 8 per-category product shelves the website Home renders
   // (yogi/app/page.tsx CATEGORY_ROWS), in the same order. `field` mirrors the
   // website's top-level-vs-subcategory distinction — Men/Women Fashion are
@@ -368,14 +400,19 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* TOP HEADER */}
-        <View style={styles.topHeader}>
-          <View style={styles.brandBlock}>
-            <Text style={styles.brandLogo}>YOMICO</Text>
-            <Text style={styles.brandTagline}>
-              India's Multi-Vendor Marketplace
-            </Text>
-          </View>
+        {/* HEADER — search + notifications. Brand title/tagline removed per the
+            mobile header direction; the bell stays here (still the only entry to
+            Notifications) until Notifications moves to the bottom tab bar. */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={[styles.searchBox, styles.searchBoxFlex]}
+            onPress={() => navigation.navigate("Search")}
+          >
+            <MaterialIcons name="search" size={24} color="#263238" />
+            <Text style={styles.searchPlaceholder}>Search on YOMICO...</Text>
+            <MaterialIcons name="mic-none" size={22} color="#263238" />
+          </TouchableOpacity>
 
           <TouchableOpacity
             activeOpacity={0.8}
@@ -392,18 +429,6 @@ export default function HomeScreen() {
             ) : null}
           </TouchableOpacity>
         </View>
-
-        {/* SEARCH */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate("Search")}
-        >
-          <View style={styles.searchBox}>
-            <MaterialIcons name="search" size={24} color="#263238" />
-            <Text style={styles.searchPlaceholder}>Search on YOMICO...</Text>
-            <MaterialIcons name="mic-none" size={22} color="#263238" />
-          </View>
-        </TouchableOpacity>
 
         {/* DELIVERY LOCATION */}
         <TouchableOpacity
@@ -566,6 +591,15 @@ export default function HomeScreen() {
                 </React.Fragment>
               );
             })}
+
+            {/* RECOMMENDED — newest products (mirrors website RecommendedProducts,
+                createdAt-desc). */}
+            {recommendedProducts.length > 0 &&
+              renderSection("Recommended for You", recommendedProducts)}
+
+            {/* FEATURED — website FeaturedProducts (featured flag, else blend). */}
+            {featuredProducts.length > 0 &&
+              renderSection("Featured Products", featuredProducts)}
           </>
         )}
 
@@ -640,21 +674,9 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* FOOTER */}
-        <View style={styles.footer}>
-          <Text style={styles.footerLogo}>YOMICO</Text>
-          <Text style={styles.footerDescription}>
-            Your everyday marketplace.
-          </Text>
-          <View style={styles.footerLinks}>
-            <TouchableOpacity onPress={() => navigation.navigate("Support")}>
-              <Text style={styles.footerLink}>Support</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.copyright}>
-            © 2026 YOMICO. All rights reserved.
-          </Text>
-        </View>
+        {/* FOOTER — full website-parity footer (brand, Company / Help / Sell link
+            groups opening the live site, trust row, copyright). */}
+        <HomeFooter />
 
         <View style={styles.bottomNavigationSpace} />
       </ScrollView>
@@ -692,6 +714,22 @@ const styles = StyleSheet.create({
   },
 
   // Header
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 13,
+    paddingTop: 14,
+    paddingBottom: 6,
+    backgroundColor: "#E9FFF1",
+    borderBottomWidth: 1,
+    borderBottomColor: "#D5F2DF",
+  },
+  searchBoxFlex: {
+    flex: 1,
+    marginHorizontal: 0,
+    marginTop: 0,
+  },
   topHeader: {
     flexDirection: "row",
     alignItems: "center",
