@@ -47,6 +47,7 @@ import ProductCard from "../components/ProductCard";
 import {
   variantDimensions,
   optionsForDimension,
+  isOptionInStock,
   isSelectionComplete,
   resolveVariant,
   variantAttributes,
@@ -142,6 +143,18 @@ function validateVariantSelection(): boolean {
     Alert.alert(
       "Not available",
       "That combination isn't available. Please choose another."
+    );
+    return false;
+  }
+
+  // The chosen variant may have sold out since the page loaded (another order
+  // took the last unit). product.stock is the TOTAL across variants and can
+  // still be > 0, so it is not the right gate — check this variant's own stock.
+  // The server re-checks and stays the final authority.
+  if (!(Number(selectedVariant.stock) > 0)) {
+    Alert.alert(
+      "Out of stock",
+      "This option is out of stock. Please choose another."
     );
     return false;
   }
@@ -968,17 +981,31 @@ saveRecentlyViewed(
 
                     <View style={styles.variantOptionsRow}>
 
-                      {options.map((option) => (
+                      {options.map((option) => {
+
+                        // Combination-aware AND stock-aware: an option with no
+                        // in-stock compatible variant stays VISIBLE but disabled.
+                        const available = isOptionInStock(
+                          variantList,
+                          dimension,
+                          option,
+                          selectedVariants
+                        );
+                        const isActive = selectedVariants[dimension] === option;
+
+                        return (
 
                         <TouchableOpacity
                           key={option}
                           style={[
                             styles.variantOption,
-                            selectedVariants[dimension] === option &&
-                              styles.variantOptionActive,
+                            isActive && styles.variantOptionActive,
+                            !available && styles.variantOptionDisabled,
                           ]}
                           activeOpacity={0.8}
-                          onPress={() =>
+                          disabled={!available}
+                          onPress={() => {
+                            if (!available) return;
                             // Choosing a value can invalidate an earlier one
                             // (picking Black when only Silver comes in 1.5 L
                             // must drop the 1.5 L) — mirrors the web product
@@ -1003,15 +1030,15 @@ saveRecentlyViewed(
                               }
 
                               return next;
-                            })
-                          }
+                            });
+                          }}
                         >
 
                           <Text
                             style={[
                               styles.variantOptionText,
-                              selectedVariants[dimension] === option &&
-                                styles.variantOptionTextActive,
+                              isActive && styles.variantOptionTextActive,
+                              !available && styles.variantOptionTextDisabled,
                             ]}
                           >
                             {option}
@@ -1019,7 +1046,8 @@ saveRecentlyViewed(
 
                         </TouchableOpacity>
 
-                      ))}
+                        );
+                      })}
 
                     </View>
 
@@ -1604,6 +1632,12 @@ reviewCount: {
       backgroundColor: "#F3FFF6",
     },
 
+    variantOptionDisabled: {
+      borderColor: "#EEEEEE",
+      backgroundColor: "#F7F7F7",
+      opacity: 0.5,
+    },
+
     variantOptionText: {
       fontSize: 12,
       fontWeight: "600",
@@ -1612,6 +1646,11 @@ reviewCount: {
 
     variantOptionTextActive: {
       color: "#16A34A",
+    },
+
+    variantOptionTextDisabled: {
+      color: "#AAAAAA",
+      textDecorationLine: "line-through",
     },
 
     ratingBreakdown: {
