@@ -37,6 +37,7 @@ import {
 } from "../navigation/AppNavigator";
 
 import { addToCart } from "../services/cartService";
+import { cartLineUnitPrice } from "../utils/priceRules";
 import {
   saveRecentlyViewed,
 } from "../services/recentlyViewedService";
@@ -120,6 +121,11 @@ const hasVariants = dimensions.length > 0;
 // The single variant matching the current choice, or null while the choice
 // is incomplete, impossible, or ambiguous (a duplicate the seller saved).
 const selectedVariant = resolveVariant(variantList, selectedVariants);
+
+// The price for the current choice, by the same rule the cart, checkout and
+// server use (utils/priceRules.ts): the chosen variant's own price when it
+// has one, otherwise the product's base price.
+const displayPrice = cartLineUnitPrice(product, selectedVariant?.id);
 
 // Blocks Add to Cart / Buy Now until every required option is chosen —
 // mirrors the web product page's own addItemToCart() validation exactly.
@@ -921,7 +927,7 @@ saveRecentlyViewed(
             <Text
               style={styles.price}
             >
-              ₹{product.price}
+              ₹{displayPrice}
             </Text>
 
 

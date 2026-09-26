@@ -9,6 +9,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "../firebase/firebase";
+import { productBasePrice } from "../utils/priceRules";
 
 /*
   Real Firestore product documents (created by the web seller flow)
@@ -45,7 +46,9 @@ function normalizeProduct(id: string, data: any) {
     ...data,
     id,
     name: data.name || data.title || "",
-    price: data.price ?? data.sellingPrice ?? 0,
+    // sellingPrice first, legacy price second — the rule the server charges
+    // by (utils/priceRules.ts).
+    price: productBasePrice(data),
     image:
       data.image ||
       data.thumbnail ||

@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   query,
   updateDoc,
@@ -10,6 +11,7 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase/firebase";
+import { cartLineUnitPrice } from "../utils/priceRules";
 
 export async function addToCart(product: any) {
   const user = auth.currentUser;
@@ -127,10 +129,44 @@ export async function getCartItems() {
 
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map(doc => ({
+  const lines: any[] = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
   }));
+
+  // A cart line's stored price is a snapshot from when it was added, and it
+  // never includes a variant's own price. The server always charges the live
+  // product (utils/priceRules.ts), so re-price each line from the live product
+  // document here, in memory only. If a product can't be read, the stored
+  // price is kept; the server re-prices at checkout either way.
+  const productIds = [
+    ...new Set(
+      lines
+        .map((line) => line.productId)
+        .filter((id): id is string => typeof id === "string" && !!id)
+    ),
+  ];
+
+  const liveProducts = new Map<string, any>();
+
+  await Promise.all(
+    productIds.map(async (productId) => {
+      try {
+        const productSnap = await getDoc(doc(db, "products", productId));
+        if (productSnap.exists()) {
+          liveProducts.set(productId, productSnap.data());
+        }
+      } catch (error) {
+        console.log("Cart price refresh skipped for a product:", error);
+      }
+    })
+  );
+
+  return lines.map((line) => {
+    const live = liveProducts.get(line.productId);
+    const livePrice = live ? cartLineUnitPrice(live, line.variantId) : 0;
+    return livePrice > 0 ? { ...line, price: livePrice } : line;
+  });
 }
 
 export async function updateCartQuantity(

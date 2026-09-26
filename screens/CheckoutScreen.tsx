@@ -22,6 +22,7 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "../firebase/firebase";
+import { payableTotal } from "../utils/priceRules";
 
 import {
   getCartItems,
@@ -214,31 +215,10 @@ setCartItemsTotalMRP(
         0
       );
 
-    const calculatedGst =
-      items.reduce(
-        (
-          sum: number,
-          item: any
-        ) => { 
-
-          const itemTotal =
-            Number(item.price) *
-            Number(item.quantity);
-
-          const gstPercent =
-            Number(
-              item.gstPercent || 0
-            );
-
-          return (
-            sum +
-            (itemTotal * gstPercent) /
-              100
-          );
-
-        },
-        0
-      );
+    // Prices are GST-inclusive (utils/priceRules.ts), exactly as the server
+    // charges: GST is never added on top of the item prices, and the server
+    // stores the mobile order's gstAmount as 0.
+    const calculatedGst = 0;
 
     setSubtotal(
       calculatedSubtotal
@@ -1670,12 +1650,13 @@ setCartItemsTotalMRP(
       style={styles.grandTotalValue}
     >
       ₹
-      {(
+      {/* Whole rupees, minimum ₹1 — the server's payable-total rule. */}
+      {payableTotal(
         subtotal +
         shippingAmount +
         gstAmount -
         (appliedCoupon?.discountAmount || 0)
-      ).toFixed(0)}
+      )}
     </Text>
 
   </View>
