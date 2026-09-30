@@ -14,7 +14,7 @@ Road Over Bridge cost calculator. Type quantity and rate, and all totals update 
    npm run dev
    ```
 
-The page opens in your browser. When you save a change in `home.tsx`, the page updates by itself.
+The page opens in your browser. When you save a change in any `.tsx` file, the page updates by itself.
 
 ## Next times
 
@@ -22,7 +22,8 @@ Just run `npm run dev`.
 
 ## Files
 
-- `home.tsx` – the estimate page (items, rates, totals). Edit this one.
+- `home.tsx` – the home (welcome) page.
+- `estimate.tsx` – the estimate calculator (items, rates, totals). Sample items and rates are in `sample()`.
 - `styles.css` – colours and layout.
 - `main.tsx`, `index.html`, `vite.config.ts`, `tsconfig.json`, `package.json` – setup files, no need to touch.
 - `offline.html` – the older single-file version; double-click to open without Node.js.
