@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import RatePicker from "./RatePicker";
 
 // ---------- Types ----------
 type Num = string | number;
@@ -198,7 +199,7 @@ export function calc(e: Estimate) {
   return { rows, portions, civil, net };
 }
 
-function download(name: string, text: string, type: string) {
+export function download(name: string, text: string, type: string) {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([text], { type }));
   a.download = name;
@@ -214,6 +215,7 @@ function download(name: string, text: string, type: string) {
 export default function EstimatePage() {
   const [est, setEst] = useState<Estimate>(() => load() ?? sample());
   const fileInput = useRef<HTMLInputElement>(null);
+  const [picker, setPicker] = useState<{ pi: number; si: number } | null>(null);
 
   useEffect(() => {
     try {
@@ -315,7 +317,7 @@ export default function EstimatePage() {
       <header>
         <a className="back" href="#/">← Home</a>
         <h1>ROB Detailed Estimate</h1>
-        <p>Type quantity, rate and LAR %. The abstract with Railway and State share updates instantly. Saved in this browser automatically.</p>
+        <p>Pick items from the rate list (or add your own), then type quantity. LAR % is applied to the amount. The abstract with Railway and State share updates instantly. Saved in this browser automatically.</p>
       </header>
 
       <div className="sticky-total">
@@ -420,8 +422,12 @@ export default function EstimatePage() {
                   </tbody>
                 </table>
               </div>
-              <button className="link" onClick={() => setSchedule(pi, si, (x) => ({ ...x, items: [...x.items, newItem()] }))}>
-                + Add item
+              <button className="link" onClick={() => setPicker({ pi, si })}>
+                + Pick from rate list
+              </button>
+              <button className="link" style={{ marginLeft: 16 }}
+                onClick={() => setSchedule(pi, si, (x) => ({ ...x, items: [...x.items, newItem()] }))}>
+                + Add blank item
               </button>
               <button
                 className="link"
@@ -537,6 +543,22 @@ export default function EstimatePage() {
         </table>
         <button className="link" onClick={() => addListRow("crrm", { name: "CRRM – ", amount: 0 })}>+ Add CRRM</button>
       </div>
+
+      {picker && est.portions[picker.pi]?.schedules[picker.si] && (
+        <RatePicker
+          scheduleName={est.portions[picker.pi].name + " › " + est.portions[picker.pi].schedules[picker.si].name}
+          onClose={() => setPicker(null)}
+          onAdd={(picked, lar) => {
+            const items: Item[] = picked.map((r) => ({ ref: r.code, desc: r.desc, unit: r.unit, qty: 0, rate: r.rate, adj: lar }));
+            setSchedule(picker.pi, picker.si, (x) => ({
+              ...x,
+              // Drop an empty starter row so picked items take its place.
+              items: [...x.items.filter((it) => it.desc.trim() || num(it.qty) || num(it.rate)), ...items],
+            }));
+            setPicker(null);
+          }}
+        />
+      )}
 
       <div className="card summary">
         <h2>Abstract of cost</h2>

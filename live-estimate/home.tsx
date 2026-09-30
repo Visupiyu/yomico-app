@@ -2,7 +2,7 @@ import { STORAGE_KEY, calc, crore, inr, load, num, sample } from "./estimate";
 
 const steps = [
   ["1", "Enter project details", "Name of work, LC number, section / km, division and estimate number."],
-  ["2", "Fill schedules", "Item No., quantity, rate and LAR / price factor % for each item in every schedule."],
+  ["2", "Pick items", "Search the USSOR / DSR rate list, tick the items you need, then type quantity and LAR %."],
   ["3", "Check the abstract", "Railway and State share, contingency, charges, S&T / electrical and CRRM, all live."],
   ["4", "Download or print", "Export to Excel (CSV), save the estimate file, or print as PDF."],
 ];
@@ -16,6 +16,7 @@ const covered = [
   ["Other sub-estimates", "Signal, Telecom, RCIL, Electrical and TRD with their own share %."],
   ["CRRM", "Credit for released material, deducted from the Railway share."],
   ["Abstract of cost", "Railway share, State share and total, row by row."],
+  ["Rate list", "Built-in USSOR 2021 and DSR 2023 items; import full schedules from CSV."],
 ];
 
 export default function Home() {

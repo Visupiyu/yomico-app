@@ -22,6 +22,16 @@ Double-click **ROB-Estimate.html**. It opens in your browser and works offline.
 The page opens in your browser. When you save a change in any `.tsx` file, the page updates by itself.
 Next times, just run `npm run dev`.
 
+## Rate list (USSOR / DSR items)
+
+In each schedule click **+ Pick from rate list**, search by code or words, tick the items you need,
+set the LAR % and click **Add**. Then type the quantity.
+
+About 60 USSOR 2021 and DSR 2023 items are built in (taken from the LC 300 estimate).
+To add the full schedules, open the **Rate list** page and click **Import CSV file**.
+The CSV needs columns Code, Description, Unit, Rate (Source is optional). In Excel use
+File → Save As → CSV UTF-8. Imported items are saved in your browser.
+
 ## How the abstract is worked out
 
 1. Each item: Qty × Rate, then LAR / price factor % (for example -28.32%, or -32% for a 0.68 factor).
@@ -40,6 +50,9 @@ The built-in example is the LC No. 300 four-lane ROB estimate. It gives a net co
 
 - `home.tsx` – the home (welcome) page.
 - `estimate.tsx` – the estimate page and all the calculations. The LC 300 example is in `sample()`.
+- `rates.ts` – built-in USSOR / DSR items and CSV import.
+- `RatePicker.tsx` – the "Pick from rate list" pop-up.
+- `ratesPage.tsx` – the Rate list page.
 - `styles.css` – colours and layout.
 - `main.tsx`, `index.html`, `vite.config.ts`, `tsconfig.json`, `package.json` – setup files, no need to touch.
 
