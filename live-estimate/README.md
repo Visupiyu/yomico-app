@@ -27,7 +27,7 @@ Next times, just run `npm run dev`.
 In each schedule click **+ Pick from rate list**, search by code or words, tick the items you need,
 set the LAR % and click **Add**. Then type the quantity.
 
-About 60 USSOR 2021 and DSR 2023 items are built in (taken from the LC 300 estimate).
+All 85 items of the LC 300 estimate are built in: USSOR 2021, DSR 2023, NS items and R&B SOR 2021-22 sign boards.
 To add the full schedules, open the **Rate list** page and click **Import CSV file**.
 The CSV needs columns Code, Description, Unit, Rate (Source is optional). In Excel use
 File → Save As → CSV UTF-8. Imported items are saved in your browser.

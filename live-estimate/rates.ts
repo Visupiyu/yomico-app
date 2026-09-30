@@ -1,4 +1,4 @@
-// Rate list (USSOR / DSR items) used by the "Pick from rate list" button.
+// Rate list (USSOR, DSR, NS and R&B SOR items) used by the "Pick from rate list" button.
 // Built-in items come from the LC No. 300 ROB estimate. More items can be
 // imported from a CSV file on the Rate list page.
 
@@ -9,6 +9,8 @@ const DSR = "DSR 2023";
 
 const u = (code: string, desc: string, unit: string, rate: number): RateItem => ({ src: USSOR, code, desc, unit, rate });
 const d = (code: string, desc: string, unit: string, rate: number): RateItem => ({ src: DSR, code, desc, unit, rate });
+const ns = (code: string, desc: string, unit: string, rate: number): RateItem => ({ src: "NS items", code, desc, unit, rate });
+const rb = (code: string, desc: string, unit: string, rate: number): RateItem => ({ src: "R&B SOR 2021-22", code, desc, unit, rate });
 
 export const BUILT_IN: RateItem[] = [
   // ----- WR USSOR 2021 -----
@@ -76,6 +78,30 @@ export const BUILT_IN: RateItem[] = [
   d("16.78.1", "Granular sub-base, Grade-I (75 mm to 0.075 mm), CBR 30", "Cum", 2784.0),
   d("16.78.3", "Granular sub-base, Grade-III (26.5 mm to 0.075 mm), CBR 20", "Cum", 2808.55),
   d("16.79", "Wet mix macadam, graded stone aggregate 53 mm to 0.075 mm", "Cum", 2914.3),
+  // ----- NS (non-schedule) items, rates as analysed in the LC 300 estimate -----
+  ns("B4-NS/001", "Removing metal beam crash barrier (single W beam, 2 mm galvanised sheet) and stacking released material", "Rmt", 68.58),
+  ns("B4-NS/002", "Fixing metal beam crash barrier (single W beam) incl. new nuts, bolts and fittings", "Rmt", 102.74),
+  ns("B4-NS/003", "Removing 1.5 m high vertical channel post (150x75x4 mm) of crash barrier, incl. excavation", "Nos", 93.74),
+  ns("B4-NS/004", "Fixing 1.5 m high vertical channel post (150x75x4 mm) in CC 1:3:6 at 2 m c/c", "Nos", 1011.36),
+  ns("B4-NS/005", "Providing and erecting double W metal beam crash barrier, single side, on 1.5 m posts (drg TP BR-95/2022-RB)", "Rmt", 3188.49),
+  ns("B4-NS/006", "Supply of material for W metal beam barrier, galvanised, with fittings", "Rmt", 524.53),
+  ns("B4-NS/007", "Supply of 2.7 m high galvanised vertical channel post (150x75x4 mm) with fittings", "Rmt", 622.88),
+  ns("B5-NS/1", "Reinforced earth retaining wall (facia, reinforcing elements, drainage layer; excl. backfill)", "Sqm", 4240.0),
+  ns("B5-NS/2", "Coping beam, M35", "Cum", 5646.0),
+  ns("B5-NS/3", "Reinforced fill: granular filling in approach (MORTH 3100), compacted to 97% MDD", "Cum", 696.25),
+  ns("B5-NS/4", "Filter media with granular material / crushed aggregate (clause 2504.2)", "Cum", 579.8),
+  ns("B5-NS/5", "Weep holes with 100 mm dia AC pipe in abutment, wing wall, return wall", "Each", 104.0),
+  ns("B5-NS/6", "DWC HDPE pipe, ISI marked, with accessories", "Meter", 358.0),
+  ns("B6-1/NS", "Cross Hole Ultrasonic Monitoring (CHUM / CSL) test of piles", "Nos", 8140.0),
+  ns("B6-2/NS", "50 mm dia medium class MS pipe for CHUM test of piles", "Meter", 229.0),
+  ns("B6-3/NS", "Shear connector studs 25 mm dia, 200 mm long, welded with stud gun, with ferrules", "Nos", 350.4),
+  // ----- R&B SOR 2021-22 sign boards (rates incl. 1% labour cess) -----
+  rb("26092C", "Cautionary warning sign, 90x90x90 cm triangle, 2 mm aluminium, retro-reflective Type-11", "Nos", 5236.85),
+  rb("26093C", "Facility informatory sign, 2 mm aluminium / 4 mm ACP, retro-reflective Type-11", "Nos", 6296.34),
+  rb("26094C", "Regulatory / mandatory sign, 60 cm dia circle, retro-reflective Type-11", "Nos", 3930.92),
+  rb("26095C", "STOP sign, 90 cm octagon, retro-reflective Type-11", "Nos", 7924.46),
+  rb("26098C", "Direction sign (junction board), retro-reflective Type-11", "Nos", 30451.5),
+  rb("26101C", "Village name / bump ahead sign, 90x60 cm, retro-reflective Type-11", "Nos", 6804.37),
 ];
 
 const LIB_KEY = "rob-rate-list-v1";
