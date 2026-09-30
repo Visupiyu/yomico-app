@@ -1,0 +1,125 @@
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1d232b;
+    --muted: #5d6875;
+    --line: #dde1e6;
+    --accent: #1f5fae;
+    --accent-soft: #e6eef9;
+    --danger: #b3261e;
+    --total-bg: #12324f;
+    --total-text: #ffffff;
+    --input-bg: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151a;
+      --card: #1b2027;
+      --text: #e7eaee;
+      --muted: #9aa4b0;
+      --line: #2e3540;
+      --accent: #6ea8ff;
+      --accent-soft: #1f2d42;
+      --danger: #ff8a80;
+      --total-bg: #0d2238;
+      --total-text: #ffffff;
+      --input-bg: #141920;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1150px; margin: 0 auto; padding: 20px 16px 60px; }
+  header h1 { margin: 0 0 4px; font-size: 24px; }
+  header p { margin: 0 0 18px; color: var(--muted); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .card h2 { margin: 0 0 12px; font-size: 17px; }
+
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  input, select {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--text);
+    font: inherit;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  input.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  button {
+    font: inherit;
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.link { border: none; background: none; color: var(--accent); padding: 6px 0; }
+  button.del { border: none; background: none; color: var(--danger); padding: 4px 6px; font-size: 18px; line-height: 1; }
+
+  .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .section-head input.sec-name { font-weight: 600; font-size: 16px; max-width: 420px; }
+  .section-total { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .table-scroll { overflow-x: auto; margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; min-width: 760px; }
+  th, td { padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  th.r, td.r { text-align: right; }
+  td.amount { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 500; }
+  col.c-no { width: 40px; } col.c-unit { width: 90px; } col.c-qty { width: 120px; }
+  col.c-rate { width: 140px; } col.c-amt { width: 150px; } col.c-del { width: 36px; }
+
+  .summary table { min-width: 0; }
+  .summary td { padding: 8px 6px; }
+  .summary .pct { width: 90px; }
+  .summary .muted { color: var(--muted); font-size: 13px; }
+  .grand {
+    margin-top: 14px;
+    background: var(--total-bg);
+    color: var(--total-text);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+  .grand .big { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .grand .small { opacity: .8; font-size: 14px; }
+
+  .sticky-total {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--accent-soft);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px;
+    font-weight: 600;
+  }
+  .note { color: var(--muted); font-size: 13px; }
+
+  @media print {
+    .toolbar, button.del, button.link, .sticky-total { display: none !important; }
+    body { background: #fff; color: #000; }
+    .card { border: none; padding: 0; }
+    input { border: none; padding: 0; background: none; }
+    .table-scroll { overflow: visible; }
+    table { min-width: 0; }
+  }
