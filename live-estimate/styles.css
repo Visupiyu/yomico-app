@@ -85,8 +85,8 @@
   th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
   th.r, td.r { text-align: right; }
   td.amount { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 500; }
-  col.c-no { width: 40px; } col.c-unit { width: 90px; } col.c-qty { width: 120px; }
-  col.c-rate { width: 140px; } col.c-amt { width: 150px; } col.c-del { width: 36px; }
+  col.c-ref { width: 90px; } col.c-unit { width: 70px; } col.c-qty { width: 110px; }
+  col.c-rate { width: 130px; } col.c-adj { width: 85px; } col.c-amt { width: 150px; } col.c-del { width: 36px; }
 
   .summary table { min-width: 0; }
   .summary td { padding: 8px 6px; }
@@ -163,11 +163,41 @@
   .steps .card, .covered .card { margin-bottom: 0; }
   .footer-note { margin-top: 28px; }
 
+
+  /* ---------- Railway estimate layout ---------- */
+  .span-all { grid-column: 1 / -1; }
+  table.items { min-width: 880px; }
+  .portion { margin: 28px 0 8px; }
+  .portion-head {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 14px; margin-bottom: 12px; border-radius: 8px;
+    background: var(--total-bg); color: var(--total-text);
+  }
+  .portion-head .portion-name {
+    flex: 1; min-width: 220px; max-width: 560px; font-weight: 700; font-size: 17px;
+    background: transparent; color: inherit; border-color: rgba(255,255,255,.3);
+  }
+  .portion-total { font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .portion-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+  .two-lane { width: 100%; max-width: 330px; }
+  .sub-title { margin: 18px 0 8px; font-size: 14px; color: var(--muted); font-weight: 600; }
+  table.mini { min-width: 0; }
+  table.mini td { padding: 4px 6px 4px 0; }
+  table.mini .w-pct { width: 110px; } table.mini .w-amt { width: 170px; }
+  table.mini .w-unit { width: 24px; color: var(--muted); } table.mini .w-del { width: 36px; }
+  table.abstract { min-width: 640px; }
+  table.abstract td:first-child { width: 40px; color: var(--muted); }
+  table.abstract tr.strong td { font-weight: 700; background: var(--accent-soft); }
+  .grand-split { display: flex; gap: 24px; flex-wrap: wrap; }
+  .grand-split div { display: flex; flex-direction: column; }
+  .grand-split strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+
   @media print {
     .toolbar, button.del, button.link, .sticky-total, .topbar, .back { display: none !important; }
     body { background: #fff; color: #000; }
     .card { border: none; padding: 0; }
     input { border: none; padding: 0; background: none; }
     .table-scroll { overflow: visible; }
-    table { min-width: 0; }
+    table, table.items, table.abstract { min-width: 0; }
+    .portion-head { background: none; color: #000; border: 1px solid #000; }
   }

@@ -1,29 +1,29 @@
-import { STORAGE_KEY, crore, inr, load, num, sample, sectionTotal, totals } from "./estimate";
+import { STORAGE_KEY, calc, crore, inr, load, num, sample } from "./estimate";
 
 const steps = [
-  ["1", "Enter project details", "LC number, location, bridge length and carriageway width."],
-  ["2", "Fill quantities and rates", "Type quantity and rate for each item. All totals update instantly."],
-  ["3", "Download or print", "Export to Excel (CSV), save the estimate file, or print as PDF."],
+  ["1", "Enter project details", "Name of work, LC number, section / km, division and estimate number."],
+  ["2", "Fill schedules", "Item No., quantity, rate and LAR / price factor % for each item in every schedule."],
+  ["3", "Check the abstract", "Railway and State share, contingency, charges, S&T / electrical and CRRM, all live."],
+  ["4", "Download or print", "Export to Excel (CSV), save the estimate file, or print as PDF."],
 ];
 
 const covered = [
-  ["Foundation", "Excavation, bored piles, pile caps, PCC."],
-  ["Substructure", "Piers, pier caps, abutments, bearings."],
-  ["Superstructure", "PSC girders, prestressing, deck slab, crash barrier, expansion joints."],
-  ["Reinforcement steel", "TMT bars for all components."],
-  ["Railway span", "Steel composite girder over track, traffic block and supervision."],
-  ["Approaches", "Embankment, RE wall, road layers, drainage."],
-  ["Miscellaneous", "Lighting, utility shifting, traffic diversion, signage."],
-  ["Taxes and add-ons", "Contingency, quality control and GST, all editable."],
+  ["Railway portion (SE-01)", "Schedules B1 to B6: USSOR, DSR and NS items with LAR %."],
+  ["Approach portion", "State Govt. estimate schedules and other provisions."],
+  ["Cost sharing", "Railway share as % of 2-lane cost, rest as State share."],
+  ["Contingency", "Contingency % on the total civil cost."],
+  ["Charges", "Departmental, environmental and sports charges, all editable."],
+  ["Other sub-estimates", "Signal, Telecom, RCIL, Electrical and TRD with their own share %."],
+  ["CRRM", "Credit for released material, deducted from the Railway share."],
+  ["Abstract of cost", "Railway share, State share and total, row by row."],
 ];
 
 export default function Home() {
   const saved = load();
-  const t = saved ? totals(saved) : null;
-  const area = saved ? num(saved.project.length) * num(saved.project.width) : 0;
+  const c = saved ? calc(saved) : null;
 
   const startNew = () => {
-    if (saved && !confirm("Start a new estimate? Your current saved estimate will be replaced with the sample.")) return;
+    if (saved && !confirm("Start a new estimate? Your current saved estimate will be replaced with the LC 300 example.")) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sample()));
     } catch {
@@ -39,8 +39,9 @@ export default function Home() {
           <p className="eyebrow">Indian Railway · Road Over Bridge</p>
           <h1>ROB cost estimate, live as you type</h1>
           <p className="lead">
-            Prepare a quick cost estimate for a Road Over Bridge in place of a railway level crossing. Enter quantities
-            and rates, and see the total in rupees and crore straight away.
+            Prepare a detailed estimate for a Road Over Bridge in place of a railway level crossing, in the usual
+            railway format: schedules with LAR %, contingency, departmental charges, S&amp;T and electrical
+            sub-estimates, CRRM, and the Railway and State share.
           </p>
           <div className="hero-actions">
             {saved ? (
@@ -56,33 +57,33 @@ export default function Home() {
       </section>
 
       <div className="wrap">
-        {saved && t && (
+        {saved && c && (
           <div className="card snapshot">
             <h2>Your saved estimate</h2>
-            <p className="muted">{saved.project.name || "Untitled project"}{saved.project.location ? " · " + saved.project.location : ""}</p>
+            <p className="muted">
+              {saved.project.name || "Untitled work"}
+              {saved.project.lcNo ? " · LC No. " + saved.project.lcNo : ""}
+            </p>
             <div className="stats">
               <div className="stat">
-                <span className="stat-label">Grand total</span>
-                <span className="stat-value">{crore(t.grand)}</span>
-                <span className="muted">{inr(t.grand)}</span>
+                <span className="stat-label">Net cost of ROB</span>
+                <span className="stat-value">{crore(c.net[2])}</span>
+                <span className="muted">{inr(c.net[2])}</span>
               </div>
               <div className="stat">
-                <span className="stat-label">Base cost of work</span>
-                <span className="stat-value">{crore(t.base)}</span>
-                <span className="muted">before add-ons and GST</span>
+                <span className="stat-label">Railway share</span>
+                <span className="stat-value">{crore(c.net[0])}</span>
+                <span className="muted">{c.net[2] ? ((c.net[0] / c.net[2]) * 100).toFixed(1) + "% of total" : "–"}</span>
               </div>
               <div className="stat">
-                <span className="stat-label">Cost per sq.m of deck</span>
-                <span className="stat-value">{area ? inr(t.grand / area) : "–"}</span>
-                <span className="muted">{area ? `${num(saved.project.length)} m × ${num(saved.project.width)} m` : "add length and width"}</span>
+                <span className="stat-label">State share</span>
+                <span className="stat-value">{crore(c.net[1])}</span>
+                <span className="muted">{c.net[2] ? ((c.net[1] / c.net[2]) * 100).toFixed(1) + "% of total" : "–"}</span>
               </div>
               <div className="stat">
-                <span className="stat-label">Biggest section</span>
-                <span className="stat-value small-value">
-                  {saved.sections.length
-                    ? saved.sections.reduce((a, b) => (sectionTotal(b) > sectionTotal(a) ? b : a)).name
-                    : "–"}
-                </span>
+                <span className="stat-label">Civil cost (before charges)</span>
+                <span className="stat-value">{crore(c.civil[2])}</span>
+                <span className="muted">{saved.portions.length} portions · Railway pays {num(saved.rlySharePct)}% of 2-lane cost</span>
               </div>
             </div>
           </div>
